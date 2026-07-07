@@ -1,4 +1,4 @@
-const CACHE = "ironlog-v1";
+const CACHE = "ironlog-v2";
 const ASSETS = ["./", "./index.html", "./icon.png"];
 
 self.addEventListener("install", e => {
@@ -11,7 +11,6 @@ self.addEventListener("activate", e => {
   ));
   self.clients.claim();
 });
-// network-first for the app shell, cache fallback for offline gym sessions
 self.addEventListener("fetch", e => {
   e.respondWith(
     fetch(e.request).then(res => {
