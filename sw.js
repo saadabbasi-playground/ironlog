@@ -1,5 +1,5 @@
-const CACHE = "ironlog-v2";
-const ASSETS = ["./", "./index.html", "./icon.png"];
+const CACHE = "ironlog-v3";
+const ASSETS = ["./", "./index.html", "./data.js", "./icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
