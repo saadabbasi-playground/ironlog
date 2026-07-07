@@ -1075,6 +1075,19 @@ function renderProfile(){
 /* ============================================================
    BOOT
 ============================================================ */
+if(typeof MUSCLES==="undefined"||typeof EX==="undefined"||typeof RULES==="undefined"){
+  document.getElementById("app").innerHTML=
+    `<div style="padding:60px 24px;text-align:center">
+      <div class="display" style="font-size:26px;margin-bottom:14px">Iron<span style="color:#3D6BFF">Log</span></div>
+      <div style="background:#2a1e1e;border:1px solid #FF5D5D;border-radius:14px;padding:16px;font-size:14.5px;text-align:left">
+        <b style="color:#FF5D5D">Setup problem: data.js didn't load.</b><br><br>
+        The app config file <b>data.js</b> is missing or unreachable. Fix:<br><br>
+        1. Make sure <b>data.js</b> is uploaded to the repo, in the <b>same folder</b> as index.html.<br>
+        2. Check it loads: open <b>…/data.js</b> in your browser — you should see code, not a 404.<br>
+        3. Then reload this page (pull down to refresh, or close and reopen the app).
+      </div></div>`;
+  throw new Error("data.js missing");
+}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 if(!window.navigator.standalone&&/iPhone|iPad/.test(navigator.userAgent))$("installbanner").style.display="block";
 const sesId=localStorage.getItem(SES_KEY);
