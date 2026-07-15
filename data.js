@@ -361,3 +361,17 @@ const RANK = {
 /* Anchor lifts: kept stable across rotations for long-term progress tracking */
 const ANCHORS = new Set(["bench","squat","rdl","deadlift","ohp","pullup","pulldown","row_bb","hipthrust","cgbench"]);
 const BIG_LIFTS = new Set(["squat","deadlift","rdl","legpress","hacksquat","hipthrust"]); // bigger load jumps
+
+/* ---------- Strength standards ----------
+   e1RM as a multiple of bodyweight, thresholds for:
+   Beginner / Novice / Intermediate / Advanced / Elite.
+   Practitioner estimates in the style of community strength standards —
+   directional, not gospel (conf: est). */
+const LEVELS = ["Beginner","Novice","Intermediate","Advanced","Elite"];
+const STRENGTH_STANDARDS = {
+  bench:    {m:[0.50,0.75,1.00,1.50,2.00], f:[0.25,0.45,0.70,1.00,1.40]},
+  squat:    {m:[0.75,1.00,1.50,2.00,2.50], f:[0.50,0.75,1.10,1.50,2.00]},
+  deadlift: {m:[1.00,1.25,1.75,2.25,2.75], f:[0.60,0.90,1.30,1.80,2.30]},
+  ohp:      {m:[0.35,0.55,0.80,1.05,1.30], f:[0.20,0.35,0.50,0.70,0.90]},
+  row_bb:   {m:[0.50,0.75,1.00,1.35,1.70], f:[0.30,0.50,0.70,0.95,1.20]}
+};
