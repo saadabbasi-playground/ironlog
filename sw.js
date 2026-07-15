@@ -1,4 +1,4 @@
-const CACHE = "ironlog-v4";
+const CACHE = "ironlog-v5";
 const ASSETS = ["./", "./index.html", "./data.js", "./icon.png"];
 
 self.addEventListener("install", e => {
