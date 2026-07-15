@@ -263,11 +263,15 @@ input.f:focus{outline:none;border-color:var(--blue)}
     <div class="card" id="pr-details"></div>
     <button class="btn ghost" onclick="editProfile()">Edit details &amp; goals</button>
     <div style="height:8px"></div>
-    <button class="btn ghost" onclick="exportData()">Export my data (JSON)</button>
+    <button class="btn ghost" onclick="exportData()">Backup my data (JSON)</button>
+    <div style="height:8px"></div>
+    <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this)">
+    <button class="btn ghost" onclick="document.getElementById('imp-file').click()">Restore from backup</button>
     <div style="height:8px"></div>
     <button class="btn ghost" onclick="logout()">Switch user</button>
     <div style="height:8px"></div>
     <button class="btn danger" onclick="deleteProfile()">Delete this profile</button>
+    <p class="tiny muted" style="margin-top:14px">Your data lives on this device only. On iPhone, use it from the Home-Screen icon (not a Safari tab) — iOS can wipe browser-tab storage after ~7 days of non-use. Export a backup now and then; Restore brings everything back.</p>
   </section>
 </div>
 
@@ -449,6 +453,33 @@ function nutritionTargets(d){
   return {kcal,tdee:Math.round(tdee),bmr:Math.round(bmr),method,pMid,pLo,pHi,fat,carbs,mealLo,mealHi,goal:d.goal||"bulk"};
 }
 function foodToday(){ me.food=me.food||{}; return me.food[todayKey()]=me.food[todayKey()]||[]; }
+function hToggle(v){$("h-cm").style.display=v==="cm"?"block":"none";$("h-ft").style.display=v==="ft"?"flex":"none";}
+function bmi(){
+  const d=me.details;
+  if(!d.weightKg||!d.heightCm)return null;
+  const v=d.weightKg/((d.heightCm/100)**2);
+  const c=v<18.5?["Underweight","gold"]:v<25?["Healthy range","green"]:v<30?["Overweight","gold"]:["Obese range","red"];
+  return {v:+v.toFixed(1),cat:c[0],cls:c[1]};
+}
+/* strength level per lift: best e1RM / bodyweight vs standards */
+function liftLevel(id){
+  const std=STRENGTH_STANDARDS[id];
+  if(!std||!me.details.weightKg||!me.details.sex)return null;
+  const h=exHistory(id); if(!h.length)return null;
+  const best=Math.max(...h.map(x=>x.best)); if(best<=0)return null;
+  const ratio=best/me.details.weightKg, t=std[me.details.sex];
+  let lvl=-1; t.forEach((x,i)=>{if(ratio>=x)lvl=i;});
+  const base=lvl>=0?t[lvl]:0, nxt=lvl<t.length-1?t[lvl+1]:null;
+  return {lvl, name:lvl<0?"Pre-beginner":LEVELS[lvl], ratio:+ratio.toFixed(2), e1:Math.round(best),
+    prog:nxt?Math.max(0,Math.min(1,(ratio-base)/(nxt-base))):1,
+    next:nxt!==null?LEVELS[lvl+1]:null, nextAt:nxt!==null?Math.round(nxt*me.details.weightKg):null};
+}
+function overallLevel(){
+  const ls=Object.keys(STRENGTH_STANDARDS).map(liftLevel).filter(Boolean).map(x=>x.lvl).sort((a,b)=>a-b);
+  if(!ls.length)return null;
+  const med=ls[Math.floor(ls.length/2)];
+  return med<0?"Pre-beginner":LEVELS[med];
+}
 
 /* ============================================================
    PROFILES / LOGIN / MIGRATION
@@ -500,14 +531,28 @@ const OB_STEPS=[
    <label class="f">4-digit PIN (optional)</label><input class="f num" id="ob-pin" inputmode="numeric" maxlength="4" value="${d.pin||""}" placeholder="Leave blank for none">`,
   read:d=>{d.name=$("ob-name").value.trim();d.unit=chipV("unit");d.pin=$("ob-pin").value.trim();
    if(!d.name){toast("Enter your name");return false;} if(d.pin&&d.pin.length!==4){toast("PIN must be 4 digits");return false;} return true;}},
- {t:"Body stats",s:"Powers your calorie & protein targets. Weight is always in kg here.",html:d=>`
-   <label class="f">Sex (for the BMR formula)</label>${chipG("sex",[["m","Male"],["f","Female"]],d.sex||"m")}
+ {t:"Body stats",s:"Powers your calorie targets, BMI and strength standards. Weight in kg.",html:d=>{
+   const cm=d.heightCm||null, ft=cm?Math.floor(cm/30.48):"", inch=cm?(Math.round((cm/2.54-(ft||0)*12)*2)/2):"";
+   const hu=d.hUnit||"cm";
+   return `
+   <label class="f">Sex (for the BMR formula &amp; strength standards)</label>${chipG("sex",[["m","Male"],["f","Female"]],d.sex||"m")}
    <div class="row"><div style="flex:1"><label class="f">Age</label><input class="f num" id="ob-age" inputmode="numeric" value="${d.age||""}" placeholder="30"></div>
-   <div style="flex:1"><label class="f">Height (cm)</label><input class="f num" id="ob-h" inputmode="numeric" value="${d.heightCm||""}" placeholder="175"></div></div>
-   <div class="row"><div style="flex:1"><label class="f">Weight (kg)</label><input class="f num" id="ob-w" inputmode="decimal" value="${d.weightKg||""}" placeholder="78"></div>
-   <div style="flex:1"><label class="f">Body fat % (optional)</label><input class="f num" id="ob-bf" inputmode="decimal" value="${d.bf||""}" placeholder="—"></div></div>`,
-  read:d=>{d.sex=chipV("sex");d.age=+$("ob-age").value||null;d.heightCm=+$("ob-h").value||null;d.weightKg=+$("ob-w").value||null;d.bf=+$("ob-bf").value||null;
-   if(!d.age||!d.heightCm||!d.weightKg){toast("Fill age, height and weight");return false;} return true;}},
+   <div style="flex:1"><label class="f">Weight (kg)</label><input class="f num" id="ob-w" inputmode="decimal" value="${d.weightKg||""}" placeholder="78"></div></div>
+   <label class="f">Height</label>
+   <div class="chips" data-cg="hu">
+     <div class="chip ${hu==="cm"?"sel":""}" data-v="cm" onclick="chipTap(this);hToggle('cm')">Centimetres</div>
+     <div class="chip ${hu==="ft"?"sel":""}" data-v="ft" onclick="chipTap(this);hToggle('ft')">Feet &amp; inches</div></div>
+   <div id="h-cm" style="display:${hu==="cm"?"block":"none"};margin-top:8px"><input class="f num" id="ob-h" inputmode="numeric" value="${cm||""}" placeholder="175"></div>
+   <div id="h-ft" style="display:${hu==="ft"?"flex":"none"};gap:10px;margin-top:8px">
+     <input class="f num" id="ob-hf" inputmode="numeric" value="${ft}" placeholder="ft (e.g. 5)" style="flex:1">
+     <input class="f num" id="ob-hi" inputmode="decimal" value="${inch}" placeholder="in (e.g. 9)" style="flex:1"></div>
+   <label class="f">Body fat % (optional — unlocks Katch-McArdle)</label><input class="f num" id="ob-bf" inputmode="decimal" value="${d.bf||""}" placeholder="—">`;},
+  read:d=>{d.sex=chipV("sex");d.age=+$("ob-age").value||null;d.weightKg=+$("ob-w").value||null;d.bf=+$("ob-bf").value||null;
+   d.hUnit=chipV("hu");
+   if(d.hUnit==="cm") d.heightCm=+$("ob-h").value||null;
+   else{const f=+$("ob-hf").value||0,i=+$("ob-hi").value||0;d.heightCm=(f||i)?Math.round(f*30.48+i*2.54):null;}
+   if(!d.age||!d.heightCm||!d.weightKg){toast("Fill age, height and weight");return false;}
+   if(d.heightCm<90||d.heightCm>250){toast("Height looks off — check it");return false;} return true;}},
  {t:"Lifestyle & goal",s:"Activity outside the gym + what you're chasing.",html:d=>`
    <label class="f">Daily activity</label>${chipG("act",[["sedentary","Desk job"],["light","Lightly active"],["moderate","Active"],["high","Very active"]],d.activity||"moderate")}
    <label class="f">Goal</label>${chipG("goal",[["bulk","💪 Build muscle"],["cut","🔥 Lose fat"],["recomp","⚖️ Recomp"]],d.goal||"bulk")}`,
@@ -922,7 +967,10 @@ function renderFood(){
   }
   $("f-sub").textContent=`${GOALS[t.goal]} · ${t.method}`;
   const log=foodToday(),k=log.reduce((a,e)=>a+e.k,0),p=log.reduce((a,e)=>a+e.p,0);
+  const B=bmi();
   $("f-body").innerHTML=`
+    ${B?`<div class="card"><div class="spread"><b>BMI</b><span class="pill ${B.cls==="green"?"green":B.cls==="red"?"red":"gold"}">${B.v} · ${B.cat}</span></div>
+      <p class="tiny muted" style="margin-top:8px">Weight ÷ height². BMI can't tell muscle from fat — well-muscled lifters often read "overweight" while lean, so treat it as one rough signal, not a verdict.</p></div>`:""}
     <div class="card">
       <div class="spread"><b>Daily targets</b><span class="pill">${t.kcal} kcal</span></div>
       <div class="macro" style="margin-top:10px">
@@ -1008,6 +1056,15 @@ function renderProgress(){
     ${stalls.length?`<div class="coach warn"><b>Plateau:</b> ${esc(stalls.join(", "))} — deload ~10% and rebuild, or rotate it out.</div>`:""}
     <div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:2px">SETS PER MUSCLE THIS WEEK vs LANDMARKS</div>${musHtml}</div>
     ${anchorHtml?`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:10px">ANCHOR LIFT STRENGTH (e1RM)</div>${anchorHtml}</div>`:""}
+    ${(()=>{const rows=Object.keys(STRENGTH_STANDARDS).map(id=>({id,L:liftLevel(id)})).filter(x=>x.L);
+      if(!rows.length)return "";
+      const ov=overallLevel();
+      return `<div class="card"><div class="spread"><span class="tiny muted" style="font-weight:700">STRENGTH LEVEL</span>${ov?`<span class="pill">${ov} overall</span>`:""}</div>
+      ${rows.map(({id,L})=>`<div style="margin-top:12px"><div class="spread"><b style="font-size:14px">${esc(EX[id].n)}</b>
+        <span class="tiny num muted">e1RM ${L.e1} ${unit()} · ${L.ratio}×BW</span></div>
+        <div class="barline"><div class="in" style="width:${Math.round(L.prog*100)}%"></div></div>
+        <div class="tiny muted">${L.name}${L.next?` → ${L.next} at ~${L.nextAt} ${unit()} e1RM`:" — top of the chart"}</div></div>`).join("")}
+      <p class="tiny muted" style="margin-top:10px">Bodyweight-relative standards (community-style estimates). e1RM via Epley from your best logged set.</p></div>`;})()}
     <div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:6px">PERSONAL RECORDS</div>
       ${prList.length?prList.map(p=>`<div class="pr-row"><span>${esc(p.name)}</span><b class="num gold">${p.w} ${unit()} × ${p.r}</b></div>`).join(""):'<div class="muted tiny">Your best lifts appear here.</div>'}</div>
     <div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:6px">HISTORY — tap to view</div>
@@ -1045,28 +1102,59 @@ function repeatHist(i){
 ============================================================ */
 function showHowTo(id){
   const e=EX[id],h=me?exHistory(id):[];
+  const L=me?liftLevel(id):null;
   const histHtml=h.length?`<div class="tiny muted" style="font-weight:700;margin:14px 0 4px">YOUR RECENT SETS</div>
     ${h.slice(-3).reverse().map(x=>`<div class="pr-row tiny"><span class="muted">${new Date(x.date).toLocaleDateString(undefined,{day:"numeric",month:"short"})}</span><span class="num">${x.sets.map(s=>s.w+"×"+s.r).join(", ")}</span></div>`).join("")}`:"";
   $("modal-body").innerHTML=`<div class="row"><span class="pill">${MUSCLES[e.m].n}</span>
     <span class="pill ${e.bias==="stretch"?"green":"dim"}">${BIAS_LABEL[e.bias]}</span><span class="pill dim">${EQ_LABEL[e.eq]}</span></div>
     <h2 class="display" style="font-size:22px;margin:10px 0 6px">${esc(e.n)}</h2>
+    ${L?`<div class="rec hold" style="margin:0 0 10px">🏅 Your level here: <b>${L.name}</b> (e1RM ${L.e1} ${unit()} = ${L.ratio}×BW)${L.next?` — ${L.next} at ~${L.nextAt} ${unit()}`:""}</div>`:""}
     <p class="tiny muted" style="margin-bottom:12px">${esc(e.why)} Targets: ${e.sub.map(s=>MUSCLES[e.m].subs[s]).join(", ")}.</p>
-    ${e.steps?"":""}${e.cues.map((s,i)=>`<div class="step"><div class="n">${i+1}</div><div>${esc(s)}</div></div>`).join("")}
+    ${e.cues.map((s,i)=>`<div class="step"><div class="n">${i+1}</div><div>${esc(s)}</div></div>`).join("")}
     <div class="tiny muted" style="font-weight:700;margin:12px 0 4px">COMMON FAULTS</div>
     ${e.faults.map(f=>`<div class="tiny" style="margin-bottom:5px">✕ ${esc(f)}</div>`).join("")}
     ${histHtml}
+    <div style="height:12px"></div>
+    <div id="vid-box"></div>
+    <button class="btn ghost" onclick="loadVideo('${id}')">▶ Watch technique videos</button>
+    <div style="text-align:center;margin-top:8px"><a class="tiny blue" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" form technique")}">Open on YouTube ↗</a></div>
     <div style="height:12px"></div><button class="btn ghost" onclick="closeModal()">Close</button>`;
   $("modal").classList.add("show");
 }
+function loadVideo(id){
+  const q=EX[id].n+" form technique";
+  $("vid-box").innerHTML=`<iframe style="width:100%;aspect-ratio:16/9;border:0;border-radius:12px;margin-bottom:10px"
+    src="https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}"
+    allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+    <p class="tiny muted" style="margin-bottom:10px">Top YouTube results for "${esc(q)}" — needs internet. If the player doesn't load, use "Open on YouTube" below.</p>`;
+}
 function closeModal(){$("modal").classList.remove("show");}
+function importData(el){
+  const f=el.files&&el.files[0]; el.value="";
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      if(!o||!o.details||!Array.isArray(o.history)) throw 0;
+      if(!confirm(`Restore backup${o.name?` of "${o.name}"`:""}? This replaces ${me.name}'s current data.`))return;
+      me.name=o.name||me.name; me.details=o.details; me.history=o.history;
+      me.food=o.food||{}; me.plan=o.plan||null; me.pin=o.pin??me.pin;
+      migrate(me); save(); render("s-profile"); toast("Backup restored ✓");
+    }catch(e){ toast("That's not a valid IronLog backup file"); }
+  };
+  r.readAsText(f);
+}
 function renderProfile(){
   $("pr-sub").textContent=me.name;
-  const d=me.details,t=nutritionTargets(d);
+  const d=me.details,t=nutritionTargets(d),B=bmi(),ov=overallLevel();
   $("pr-details").innerHTML=`
     <div class="pr-row"><span class="muted">Goal</span><b>${GOALS[d.goal]}</b></div>
     <div class="pr-row"><span class="muted">Days / week</span><b class="num">${d.days} (${me.plan.label})</b></div>
     <div class="pr-row"><span class="muted">Equipment</span><b>${d.eqs.map(e=>EQ_LABEL[e]).join(", ")}</b></div>
     <div class="pr-row"><span class="muted">Body</span><b class="num">${d.weightKg||"—"} kg · ${d.heightCm||"—"} cm${d.bf?` · ${d.bf}% bf`:""}</b></div>
+    ${B?`<div class="pr-row"><span class="muted">BMI</span><b class="num ${B.cls}">${B.v} · ${B.cat}</b></div>`:""}
+    ${ov?`<div class="pr-row"><span class="muted">Strength level</span><b>${ov}</b></div>`:""}
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>`;
