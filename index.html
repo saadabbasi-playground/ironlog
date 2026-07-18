@@ -103,6 +103,7 @@ input.f:focus{outline:none;border-color:var(--blue)}
   background:var(--blue);color:#fff;border-radius:18px;padding:13px 18px;font-weight:800;display:none;z-index:60;
   box-shadow:0 8px 24px rgba(61,107,255,.45);align-items:center;justify-content:space-between}
 #resttimer.show{display:flex}
+body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 #resttimer button{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:10px;padding:7px 13px;font-weight:800;font-size:14px;cursor:pointer;margin-left:8px}
 .lib-item{padding:13px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer}
 .lib-item:active{background:var(--raised)}
@@ -815,9 +816,9 @@ function startWorkout(dayIdx){
 function resumeWorkout(){if(live)openWorkout();}
 function openWorkout(){
   $("w-title").textContent=live.name;
-  $("w-meso").innerHTML=live.deload
-    ?`<span class="pill gold">DELOAD — HALF SETS · RIR 4+</span>`
-    :`<span class="pill">WEEK ${mesoWeek()+1} · TARGET RIR ${live.rir}</span>`;
+  $("w-meso").innerHTML=(live.deload
+    ?`<span class="pill gold" onclick="rirHelp()" style="cursor:pointer">DELOAD — HALF SETS · RIR 4+ ⓘ</span>`
+    :`<span class="pill" onclick="rirHelp()" style="cursor:pointer">WEEK ${mesoWeek()+1} · TARGET RIR ${live.rir} ⓘ</span>`);
   renderWorkout();go("s-workout");
   clearInterval(clockIv);
   clockIv=setInterval(()=>{if(!live){clearInterval(clockIv);return;}
@@ -895,9 +896,25 @@ function swapEx(ei,id){const e=live.ex[ei];
 function removeEx(ei){live.ex.splice(ei,1);saveDraft();closeModal();renderWorkout();}
 function openAddExercise(){
   const ok=Object.entries(EX).filter(([id,x])=>ex_eq_ok(id,me.details.eqs));
-  $("modal-body").innerHTML=`<h2 class="display" style="font-size:19px;margin-bottom:14px">Add exercise</h2>
-    ${ok.map(([id,x])=>`<div class="lib-item" onclick="addExToLive('${id}')"><b>${esc(x.n)}</b><div class="tiny muted">${MUSCLES[x.m].n} · ${BIAS_LABEL[x.bias]}</div></div>`).join("")}
+  $("modal-body").innerHTML=`<h2 class="display" style="font-size:19px;margin-bottom:10px">Add exercise</h2>
+    <input class="f" id="add-search" placeholder="Search…" oninput="filterAddList(this.value)" style="margin-bottom:10px">
+    <div id="add-list">${ok.map(([id,x])=>`<div class="lib-item" data-n="${esc(x.n.toLowerCase())} ${MUSCLES[x.m].n.toLowerCase()}" onclick="addExToLive('${id}')"><b>${esc(x.n)}</b><div class="tiny muted">${MUSCLES[x.m].n} · ${BIAS_LABEL[x.bias]}</div></div>`).join("")}</div>
     <button class="btn ghost" onclick="closeModal()">Cancel</button>`;
+  $("modal").classList.add("show");
+}
+function filterAddList(q){
+  q=q.toLowerCase();
+  document.querySelectorAll("#add-list .lib-item").forEach(el=>{
+    el.style.display=el.dataset.n.includes(q)?"":"none";});
+}
+function rirHelp(){
+  $("modal-body").innerHTML=`<h2 class="display" style="font-size:20px;margin-bottom:10px">What is RIR?</h2>
+    <p style="font-size:14.5px;margin-bottom:10px"><b>RIR = Reps In Reserve</b> — how many more reps you <i>could</i> have done when you ended the set.</p>
+    <div class="step"><div class="n">2</div><div><b>RIR 2</b>: you stopped 2 reps before failure. If you did 10 reps, you could have ground out 12.</div></div>
+    <div class="step"><div class="n">0</div><div><b>RIR 0</b>: absolute failure — the next rep would not have moved.</div></div>
+    <div class="step"><div class="n">4</div><div><b>RIR 4+</b>: comfortable effort — used on deload weeks to recover.</div></div>
+    <p class="tiny muted" style="margin:10px 0">Why it matters: growth needs sets close to failure (RIR 0–3), but living at RIR 0 wrecks recovery. IronLog schedules effort across the mesocycle — RIR 3 in week 1, tightening to RIR 1 by week 4, then a deload. Log your honest RIR on each set and the app uses it: lots of reps left in the tank → it prescribes more weight next time.</p>
+    <button class="btn ghost" onclick="closeModal()">Got it</button>`;
   $("modal").classList.add("show");
 }
 function addExToLive(id){
@@ -908,11 +925,12 @@ function addExToLive(id){
 function startRest(sec){
   stopRest();let s=sec;
   $("rest-secs").textContent=s;$("resttimer").classList.add("show");
+  document.body.classList.add("resting");
   restIv=setInterval(()=>{s--;$("rest-secs").textContent=s;
     if(s<=0){stopRest();toast("Rest over — next set 💥");if(navigator.vibrate)navigator.vibrate(200);}},1000);
 }
 function addRest(n){$("rest-secs").textContent=+$("rest-secs").textContent+n;}
-function stopRest(){clearInterval(restIv);restIv=null;$("resttimer").classList.remove("show");}
+function stopRest(){clearInterval(restIv);restIv=null;$("resttimer").classList.remove("show");document.body.classList.remove("resting");}
 
 function finishWorkout(){
   const exercises=live.ex.map(e=>({id:e.id,name:EX[e.id].n,
