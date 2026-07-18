@@ -367,11 +367,22 @@ const BIG_LIFTS = new Set(["squat","deadlift","rdl","legpress","hacksquat","hipt
    Beginner / Novice / Intermediate / Advanced / Elite.
    Practitioner estimates in the style of community strength standards —
    directional, not gospel (conf: est). */
-const LEVELS = ["Beginner","Novice","Intermediate","Advanced","Elite"];
-const STRENGTH_STANDARDS = {
+const LEVELS = ["Beginner","Novice","Intermediate","Advanced","Elite"];const STRENGTH_STANDARDS = {
   bench:    {m:[0.50,0.75,1.00,1.50,2.00], f:[0.25,0.45,0.70,1.00,1.40]},
   squat:    {m:[0.75,1.00,1.50,2.00,2.50], f:[0.50,0.75,1.10,1.50,2.00]},
   deadlift: {m:[1.00,1.25,1.75,2.25,2.75], f:[0.60,0.90,1.30,1.80,2.30]},
   ohp:      {m:[0.35,0.55,0.80,1.05,1.30], f:[0.20,0.35,0.50,0.70,0.90]},
   row_bb:   {m:[0.50,0.75,1.00,1.35,1.70], f:[0.30,0.50,0.70,0.95,1.20]}
 };
+
+/* ---------- Technique videos ----------
+   Verified uploads from Jeff Nippard's official channel (Technique Tuesday).
+   Exercises without a verified ID fall back to the series playlist embed
+   and an external YouTube search. */
+const VIDS = {
+  bench:    "vcBig73ojpE",   // How To Get A Huge Bench Press with PERFECT Technique
+  squat:    "bEv6CCg2BC8",   // How To Get A Huge Squat With Perfect Technique
+  deadlift: "VL5Ab0T07e4",   // Build A Bigger Deadlift With Perfect Technique
+  ohp:      "_RlRDWO2jfg"    // Build Bigger Shoulders With Perfect Training Technique
+};
+const TECH_PLAYLIST = "PLp4G6oBUcv8yGQifkb4p_ZOoACPnYslx9"; // Technique Tuesday series
