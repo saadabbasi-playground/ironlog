@@ -1115,18 +1115,11 @@ function showHowTo(id){
     ${e.faults.map(f=>`<div class="tiny" style="margin-bottom:5px">✕ ${esc(f)}</div>`).join("")}
     ${histHtml}
     <div style="height:12px"></div>
-    <div id="vid-box"></div>
-    <button class="btn ghost" onclick="loadVideo('${id}')">▶ Watch technique videos</button>
-    <div style="text-align:center;margin-top:8px"><a class="tiny blue" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" form technique")}">Open on YouTube ↗</a></div>
-    <div style="height:12px"></div><button class="btn ghost" onclick="closeModal()">Close</button>`;
+    <a class="btn ghost" style="text-decoration:none" target="_blank" rel="noopener"
+      href="${VIDS[id]?`https://www.youtube.com/watch?v=${VIDS[id]}`:`https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" form technique")}`}">
+      ▶ ${VIDS[id]?"Watch technique video on YouTube":"Find technique videos on YouTube"}</a>
+    <div style="height:8px"></div><button class="btn ghost" onclick="closeModal()">Close</button>`;
   $("modal").classList.add("show");
-}
-function loadVideo(id){
-  const q=EX[id].n+" form technique";
-  $("vid-box").innerHTML=`<iframe style="width:100%;aspect-ratio:16/9;border:0;border-radius:12px;margin-bottom:10px"
-    src="https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}"
-    allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>
-    <p class="tiny muted" style="margin-bottom:10px">Top YouTube results for "${esc(q)}" — needs internet. If the player doesn't load, use "Open on YouTube" below.</p>`;
 }
 function closeModal(){$("modal").classList.remove("show");}
 function importData(el){
