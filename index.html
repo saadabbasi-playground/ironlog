@@ -508,7 +508,7 @@ function renderProfiles(){
   });
 }
 function checkPin(){$("pin-input").value===pendingLogin.pin?login(pendingLogin):toast("Wrong PIN");}
-function login(u){me=migrate(u);save();localStorage.setItem(SES_KEY,u.id);loadDraft();tab("s-today");}
+function login(u){todayPick=null;me=migrate(u);save();localStorage.setItem(SES_KEY,u.id);loadDraft();tab("s-today");}
 function logout(){me=null;localStorage.removeItem(SES_KEY);renderProfiles();navStack=[];go("s-profiles",false);}
 function openProfile(){render("s-profile");go("s-profile");}
 function deleteProfile(){
@@ -641,6 +641,8 @@ function coachTips(){
    TODAY
 ============================================================ */
 function nextDayIdx(){const last=me.history[me.history.length-1];return last?((last.dayIdx??-1)+1)%me.plan.days.length:0;}
+let todayPick=null;
+function pickDay(i){todayPick=i;renderToday();}
 function renderToday(){
   $("t-greet").textContent=`Hey ${me.name}`;
   $("t-date").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
@@ -649,15 +651,17 @@ function renderToday(){
   if(live) html+=`<div class="resume"><b>⏸ Workout in progress:</b> ${esc(live.name)} — sets are saved.
     <div style="height:8px"></div><button class="btn small" onclick="resumeWorkout()">Resume</button></div>`;
   html+=coachTips().map(t=>`<div class="coach ${t.c}"><b>${esc(t.h)}:</b> ${esc(t.t)}</div>`).join("");
-  const idx=nextDayIdx(),day=me.plan.days[idx];
+  const sug=nextDayIdx(), idx=todayPick??sug, day=me.plan.days[idx];
   const dl=isDeload();
   html+=`<div class="session-card">
-    <div class="spread"><span class="pill">NEXT SESSION</span>${dl?'<span class="pill gold">DELOAD ×0.5 SETS</span>':""}</div>
+    <div class="spread"><span class="pill">${idx===sug?"NEXT IN ROTATION":"YOUR PICK"}</span>${dl?'<span class="pill gold">DELOAD ×0.5 SETS</span>':""}</div>
     <h2 class="display" style="font-size:23px;margin:8px 0 2px">${esc(day.name)}</h2>
     <p class="tiny muted" style="margin-bottom:10px">${day.exercises.length} exercises · RIR ${targetRIR()} · ~${Math.round(day.exercises.reduce((a,e)=>a+e.sets,0)*(dl?0.5:1)*3.2)} min</p>
     ${day.exercises.map(e=>`<div class="ex-line"><span>${esc(EX[e.id].n)}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
       <span class="muted num">${dl?Math.max(1,Math.round(e.sets*RULES.deloadSetFactor)):e.sets}×${e.reps[0]}–${e.reps[1]}</span></div>`).join("")}
-    <div style="height:14px"></div><button class="btn" onclick="startWorkout(${idx})">Start workout</button></div>`;
+    <div style="height:14px"></div><button class="btn" onclick="startWorkout(${idx})">Start workout</button></div>
+  <div class="chips" style="margin-bottom:14px">${me.plan.days.map((d,i)=>
+    `<div class="chip ${i===idx?"sel":""}" onclick="pickDay(${i})">${esc(d.name)}${i===sug?" ↻":""}</div>`).join("")}</div>`;
   // nutrition snapshot
   const t=nutritionTargets(me.details);
   if(t){
@@ -924,6 +928,7 @@ function finishWorkout(){
   const dur=Math.round((Date.now()-live.start)/60000);
   const entry={date:new Date().toISOString(),dayIdx:live.dayIdx,name:live.name,exercises,volume,dur,deload:live.deload};
   me.history.push(entry);save();
+  todayPick=null;
   live=null;saveDraft();stopRest();clearInterval(clockIv);
   renderSummary(entry,prevMax,prevBest,sameDayPrev);
   navStack=[];go("s-summary",false);
@@ -1103,6 +1108,8 @@ function repeatHist(i){
 function showHowTo(id){
   const e=EX[id],h=me?exHistory(id):[];
   const L=me?liftLevel(id):null;
+  const vid=(typeof VIDS!=="undefined"&&VIDS[id])||null;
+  const vHref=vid?`https://www.youtube.com/watch?v=${vid}`:`https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" form technique")}`;
   const histHtml=h.length?`<div class="tiny muted" style="font-weight:700;margin:14px 0 4px">YOUR RECENT SETS</div>
     ${h.slice(-3).reverse().map(x=>`<div class="pr-row tiny"><span class="muted">${new Date(x.date).toLocaleDateString(undefined,{day:"numeric",month:"short"})}</span><span class="num">${x.sets.map(s=>s.w+"×"+s.r).join(", ")}</span></div>`).join("")}`:"";
   $("modal-body").innerHTML=`<div class="row"><span class="pill">${MUSCLES[e.m].n}</span>
@@ -1115,9 +1122,8 @@ function showHowTo(id){
     ${e.faults.map(f=>`<div class="tiny" style="margin-bottom:5px">✕ ${esc(f)}</div>`).join("")}
     ${histHtml}
     <div style="height:12px"></div>
-    <a class="btn ghost" style="text-decoration:none" target="_blank" rel="noopener"
-      href="${VIDS[id]?`https://www.youtube.com/watch?v=${VIDS[id]}`:`https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" form technique")}`}">
-      ▶ ${VIDS[id]?"Watch technique video on YouTube":"Find technique videos on YouTube"}</a>
+    <a class="btn ghost" style="text-decoration:none" target="_blank" rel="noopener" href="${vHref}">
+      ▶ ${vid?"Watch technique video on YouTube":"Find technique videos on YouTube"}</a>
     <div style="height:8px"></div><button class="btn ghost" onclick="closeModal()">Close</button>`;
   $("modal").classList.add("show");
 }
