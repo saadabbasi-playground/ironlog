@@ -258,6 +258,11 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
     <div id="hd-body"></div>
   </section>
 
+  <section class="screen no-tab" id="s-growth">
+    <div class="topbar"><button class="backbtn" onclick="back()">‹</button><h1 class="display">Growth</h1></div>
+    <div id="g-body"></div>
+  </section>
+
   <section class="screen no-tab" id="s-profile">
     <div class="topbar"><button class="backbtn" onclick="back()">‹</button><h1 class="display">Profile</h1></div>
     <p class="sub" id="pr-sub"></p>
@@ -317,6 +322,7 @@ function render(id){
   if(id==="s-today")renderToday(); else if(id==="s-plan")renderPlan();
   else if(id==="s-muscles")renderMuscles(); else if(id==="s-food")renderFood();
   else if(id==="s-progress")renderProgress(); else if(id==="s-muscle")renderMuscle();
+  else if(id==="s-growth")renderGrowth();
   else if(id==="s-profile")renderProfile();
 }
 function go(id,push=true){
@@ -493,7 +499,7 @@ function migrate(u){
   if(!d.goal||!(d.goal in GOALS)) d.goal = d.goal==="fatloss"?"cut":"bulk";
   d.exp=d.exp||"intermediate"; d.days=d.days||3; d.splitPref=d.splitPref||"auto";
   d.priority=(d.priority||[]).map(p=>p.toLowerCase()).filter(p=>MUSCLES[p]);
-  u.details=d; u.food=u.food||{}; u.history=u.history||[];
+  u.details=d; u.food=u.food||{}; u.history=u.history||[]; u.measures=u.measures||[];
   if(!u.plan||!u.plan.key) u.plan=generatePlan(d);
   return u;
 }
@@ -704,8 +710,8 @@ function renderPlan(){
   html+=me.plan.days.map((d,i)=>`<div class="card">
     <div class="spread"><b class="display" style="font-size:15px">Day ${i+1} · ${esc(d.name)}</b>
       <button class="btn small ghost" onclick="startWorkout(${i})">Start</button></div><div style="height:8px"></div>
-    ${d.exercises.map(e=>`<div class="ex-line"><span class="howto-link" onclick="showHowTo('${e.id}')">${esc(EX[e.id].n)}${e.anchor?' <span class="pill dim" style="font-size:10px">ANCHOR</span>':""}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
-      <span class="muted num">${e.sets}×${e.reps[0]}–${e.reps[1]}</span></div>`).join("")}
+    ${d.exercises.map((e,xi)=>`<div class="ex-line"><span class="howto-link" onclick="showHowTo('${e.id}')">${esc(EX[e.id].n)}${e.anchor?' <span class="pill dim" style="font-size:10px">ANCHOR</span>':""}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
+      <span class="row"><span class="muted num">${e.sets}×${e.reps[0]}–${e.reps[1]}</span><button class="exmenu" style="width:30px;height:30px;font-size:15px" onclick="planOptions(${i},${xi})">⇄</button></span></div>`).join("")}
   </div>`).join("");
   html+=`<button class="btn ghost" onclick="rotateAccessories()">⇄ Rotate accessory exercises</button><div style="height:8px"></div>
     <button class="btn ghost" onclick="newMeso()">↻ Start a new mesocycle (week 1)</button>`;
@@ -879,15 +885,53 @@ function updateBarViz(){
   $("plates-r").innerHTML="<div class='plate'></div>".repeat(showN-half);
   $("w-progress").textContent=`${done} / ${total} sets — every plate is a completed set`;
 }
+/* ---------- shared swap sheet: equipment variants first ---------- */
+let swapAll=false;
+function swapGroups(curId){
+  const m=EX[curId].m, pat=patternOf(curId);
+  const ok=id=>swapAll||ex_eq_ok(id,me.details.eqs);
+  const same=(PATTERNS[pat]||[]).filter(id=>id!==curId&&ok(id));
+  const other=RANK[m].filter(id=>id!==curId&&!same.includes(id)&&ok(id));
+  return {pat,same,other};
+}
+function swapItem(id,handler){
+  const x=EX[id];
+  return `<div class="lib-item" onclick="${handler}"><div class="spread"><b>⇄ ${esc(x.n)}</b>
+    <span class="pill ${ex_eq_ok(id,me.details.eqs)?"dim":"gold"}" style="font-size:10px">${EQ_LABEL[x.eq].toUpperCase()}</span></div>
+    <div class="tiny muted">${BIAS_LABEL[x.bias]} · ${x.reps[0]}–${x.reps[1]} reps · ${esc(x.why)}</div></div>`;
+}
+function swapSheet(curId,handlerFor,footer){
+  const g=swapGroups(curId);
+  return `<h2 class="display" style="font-size:19px;margin-bottom:2px">${esc(EX[curId].n)}</h2>
+    <p class="tiny muted" style="margin-bottom:10px">${MUSCLES[EX[curId].m].n} · currently ${EQ_LABEL[EX[curId].eq]}</p>
+    <div class="chips" style="margin-bottom:12px">
+      <div class="chip ${swapAll?"":"sel"}" onclick="swapAll=false;${footer.reopen}">My equipment</div>
+      <div class="chip ${swapAll?"sel":""}" onclick="swapAll=true;${footer.reopen}">Show all</div></div>
+    ${g.same.length?`<div class="tiny muted" style="font-weight:700;margin-bottom:6px">SAME MOVEMENT — DIFFERENT EQUIPMENT${g.pat?` (${g.pat.toUpperCase()})`:""}</div>
+      ${g.same.map(id=>swapItem(id,handlerFor(id))).join("")}`:""}
+    ${g.other.length?`<div class="tiny muted" style="font-weight:700;margin:14px 0 6px">OTHER ${MUSCLES[EX[curId].m].n.toUpperCase()} EXERCISES</div>
+      ${g.other.map(id=>swapItem(id,handlerFor(id))).join("")}`:""}
+    ${!g.same.length&&!g.other.length?'<div class="muted tiny" style="margin-bottom:10px">No alternatives — try "Show all".</div>':""}`;
+}
 function exOptions(ei){
-  const e=live.ex[ei],m=EX[e.id].m;
-  const alts=RANK[m].filter(id=>id!==e.id&&ex_eq_ok(id,me.details.eqs));
-  $("modal-body").innerHTML=`<h2 class="display" style="font-size:19px;margin-bottom:4px">${esc(EX[e.id].n)}</h2>
-    <p class="tiny muted" style="margin-bottom:14px">Swap for another ${MUSCLES[m].n} exercise, or remove it from today.</p>
-    ${alts.map(id=>{const x=EX[id];return `<div class="lib-item" onclick="swapEx(${ei},'${id}')"><div class="spread"><b>⇄ ${esc(x.n)}</b><span class="pill ${x.bias==="stretch"?"green":"dim"}" style="font-size:10px">${BIAS_LABEL[x.bias].toUpperCase()}</span></div><div class="tiny muted">${EQ_LABEL[x.eq]} · ${esc(x.why)}</div></div>`;}).join("")||'<div class="muted tiny" style="margin-bottom:10px">No alternatives for your equipment.</div>'}
-    <button class="btn danger" onclick="removeEx(${ei})">Remove from today's workout</button>
-    <div style="height:8px"></div><button class="btn ghost" onclick="closeModal()">Cancel</button>`;
+  const e=live.ex[ei];
+  $("modal-body").innerHTML=swapSheet(e.id,id=>`swapEx(${ei},'${id}')`,{reopen:`exOptions(${ei})`})+
+    `<div style="height:10px"></div><button class="btn danger" onclick="removeEx(${ei})">Remove from today's workout</button>
+     <div style="height:8px"></div><button class="btn ghost" onclick="closeModal()">Cancel</button>`;
   $("modal").classList.add("show");
+}
+function planOptions(di,xi){
+  const cur=me.plan.days[di].exercises[xi];
+  $("modal-body").innerHTML=swapSheet(cur.id,id=>`planSwap(${di},${xi},'${id}')`,{reopen:`planOptions(${di},${xi})`})+
+    `<p class="tiny muted" style="margin-top:10px">Swapping here changes your saved program for every future session.</p>
+     <button class="btn ghost" onclick="closeModal()">Cancel</button>`;
+  $("modal").classList.add("show");
+}
+function planSwap(di,xi,id){
+  const cur=me.plan.days[di].exercises[xi];
+  me.plan.days[di].exercises[xi]={id,sets:cur.sets,reps:EX[id].reps.slice(),
+    rest:EX[id].type==="compound"?150:90,anchor:!!cur.anchor&&ANCHORS.has(id),prio:!!cur.prio};
+  save();closeModal();renderPlan();toast("Program updated ✓");
 }
 function swapEx(ei,id){const e=live.ex[ei];
   live.ex[ei]={id,rest:EX[id].type==="compound"?150:90,lo:EX[id].reps[0],hi:EX[id].reps[1],
@@ -1034,6 +1078,7 @@ function addFood(){
 function quickFood(i){foodToday().push({...QUICK[i]});save();renderFood();toast(QUICK[i].n+" added ✓");}
 function delFood(i){foodToday().splice(i,1);save();renderFood();}
 
+
 /* ============================================================
    PROGRESS
 ============================================================ */
@@ -1068,6 +1113,7 @@ function renderProgress(){
   const prList=Object.values(prs).sort((a,b)=>b.w-a.w);
   const stalls=stalledExercises();
   $("prog-body").innerHTML=`
+    <button class="btn ghost" style="margin-bottom:12px" onclick="openGrowth()">📏 Growth &amp; body measurements</button>
     <div class="row" style="margin-bottom:12px">
       <div class="card" style="flex:1;text-align:center;margin:0"><div class="display num" style="font-size:22px">${streak()}</div><div class="tiny muted">week streak</div></div>
       <div class="card" style="flex:1;text-align:center;margin:0"><div class="display num" style="font-size:22px">${weekSessions(0).length}/${me.details.days}</div><div class="tiny muted">this week</div></div>
@@ -1118,6 +1164,88 @@ function repeatHist(i){
       lo:EX[e.id].reps[0],hi:EX[e.id].reps[1],
       sets:e.sets.map(()=>({w:"",r:"",rir:"",done:false}))}))};
   saveDraft();openWorkout();
+}
+
+/* ============================================================
+   GROWTH — body measurements + training-stimulus proxies
+============================================================ */
+function openGrowth(){render("s-growth");go("s-growth");}
+function saveMeasure(){
+  const e={date:new Date().toISOString()};let any=false;
+  MEASURES.forEach(m=>{const v=parseFloat($("ms-"+m.k).value);
+    if(v>0&&v<400){e[m.k]=v;any=true;}});
+  if(!any){toast("Enter at least one measurement");return;}
+  me.measures=me.measures||[];me.measures.push(e);
+  me.measures.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(e.weightKg)me.details.weightKg=e.weightKg;   // keeps BMI + calories in sync
+  save();renderGrowth();toast("Saved ✓");
+}
+function delMeasure(i){
+  if(!confirm("Delete this measurement entry?"))return;
+  me.measures.splice(i,1);save();renderGrowth();
+}
+const measureSeries=k=>(me.measures||[]).filter(m=>m[k]!=null).map(m=>({d:m.date,v:m[k]}));
+function muscleStimulus(m){
+  const now=Date.now();
+  const win=(a,b)=>me.history.filter(h=>{const d=now-new Date(h.date);return d>=a*864e5&&d<b*864e5;});
+  const setsIn=w=>{let n=0;w.forEach(h=>h.exercises.forEach(e=>{if(EX[e.id]&&EX[e.id].m===m)n+=e.sets.length;}));return n;};
+  const bestIn=w=>{let b=0;w.forEach(h=>h.exercises.forEach(e=>{if(EX[e.id]&&EX[e.id].m===m)
+    e.sets.forEach(s=>{const v=e1rm(s.w,s.r);if(v>b)b=v;});}));return b;};
+  const cur=win(0,28),prev=win(28,56);
+  const bc=bestIn(cur),bp=bestIn(prev);
+  return {sets:setsIn(cur),setsPrev:setsIn(prev),best:bc,bestPrev:bp,
+    strengthPct:(bp>0&&bc>0)?Math.round((bc-bp)/bp*100):null,
+    target:weeklyTarget(m,me.details)*4};
+}
+function renderGrowth(){
+  const M=me.measures||[],last=M[M.length-1];
+  let html=`<p class="sub">Tape measurements are the only real way to see muscle growth. The training data below shows whether you're creating the stimulus for it.</p>`;
+  // ---- log form ----
+  html+=`<div class="card"><b>Log measurements</b>
+    <p class="tiny muted" style="margin:4px 0 6px">Same time of day, same tape tension, arm flexed. Every 2–4 weeks is plenty — muscle moves slower than daily noise.</p>
+    ${MEASURES.map(m=>`<label class="f">${m.n} (${m.u})</label>
+      <input class="f num" id="ms-${m.k}" inputmode="decimal" placeholder="${last&&last[m.k]!=null?last[m.k]:"—"}">`).join("")}
+    <div style="height:12px"></div><button class="btn small" onclick="saveMeasure()">Save entry</button></div>`;
+  // ---- trends ----
+  if(M.length){
+    let rows="";
+    MEASURES.forEach(m=>{
+      const s=measureSeries(m.k);if(!s.length)return;
+      const cur=s[s.length-1].v,dv=+(cur-s[0].v).toFixed(1);
+      const cls=s.length<2||dv===0?"muted":(m.grow?dv>0:dv<0)?"green":"red";
+      rows+=`<div style="margin-bottom:12px"><div class="spread"><b style="font-size:14px">${m.n}</b>
+        <span class="tiny num ${cls}">${cur} ${m.u}${s.length>1?` · ${dv>0?"+":""}${dv} since ${new Date(s[0].d).toLocaleDateString(undefined,{day:"numeric",month:"short"})}`:""}</span></div>
+        ${s.length>1?sparkline(s.map(x=>x.v)):'<div class="tiny muted">Log again to see a trend line.</div>'}</div>`;
+    });
+    html+=`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:8px">MEASUREMENT TRENDS · ${M.length} ENTR${M.length===1?"Y":"IES"}</div>${rows}</div>`;
+  }
+  // ---- training stimulus ----
+  const stim=Object.keys(MUSCLES).map(m=>({m,s:muscleStimulus(m)})).filter(x=>x.s.sets||x.s.setsPrev);
+  if(stim.length){
+    html+=`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:8px">TRAINING STIMULUS · LAST 4 WEEKS vs PREVIOUS 4</div>
+    ${stim.map(({m,s})=>{
+      const dv=s.sets-s.setsPrev;
+      const volCls=s.setsPrev===0?"muted":dv>0?"green":dv<0?"gold":"muted";
+      const st=s.strengthPct;
+      return `<div style="margin-bottom:11px"><div class="spread"><b style="font-size:14px">${MUSCLES[m].n}</b>
+        <span class="tiny num">${st===null?'<span class="muted">strength: —</span>':
+          `<span class="${st>0?"green":st<0?"red":"muted"}">${st>0?"▲":st<0?"▼":"—"} ${Math.abs(st)}% strength</span>`}</span></div>
+        <div class="barline"><div class="in" style="width:${Math.min(100,s.target?s.sets/s.target*100:0)}%"></div></div>
+        <div class="tiny muted num">${s.sets} sets vs ${s.setsPrev} previously <span class="${volCls}">${s.setsPrev?`(${dv>0?"+":""}${dv})`:""}</span> · plan target ~${s.target}/4wk</div></div>`;
+    }).join("")}
+    <p class="tiny muted" style="margin-top:8px">Strength % compares your best estimated 1RM on that muscle's lifts across the two periods. Rising strength with adequate volume is the best in-gym signal that growth is happening — but only the tape confirms it.</p></div>`;
+  } else {
+    html+=`<div class="coach"><b>Stimulus tracking:</b> log a few workouts and this fills with sets-per-muscle and strength trends for the last 4 weeks vs the 4 before.</div>`;
+  }
+  // ---- entries ----
+  if(M.length){
+    html+=`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:6px">ENTRIES</div>
+      ${[...M].map((e,i)=>({e,i})).reverse().map(({e,i})=>`<div class="pr-row"><span class="tiny">${new Date(e.date).toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"})}</span>
+        <span class="row"><span class="tiny muted num">${MEASURES.filter(m=>e[m.k]!=null).map(m=>`${m.n.split(" ")[0]} ${e[m.k]}`).join(" · ")||"—"}</span>
+        <span class="red" style="cursor:pointer;padding:0 4px" onclick="delMeasure(${i})">✕</span></span></div>`).join("")}</div>`;
+  }
+  html+=`<p class="tiny muted">Expect roughly 0.5–1 cm on the arms over a couple of months of good training as a realistic pace — measurements bounce with pump, hydration and food, so judge the trend line, not any single reading.</p>`;
+  $("g-body").innerHTML=html;
 }
 
 /* ============================================================
