@@ -279,6 +279,8 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
     <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(this)">
     <button class="btn ghost" onclick="document.getElementById('imp-file').click()">Restore from backup</button>
     <div style="height:8px"></div>
+    <button class="btn ghost" onclick="forceUpdate()">🔄 Check for app updates</button>
+    <div style="height:8px"></div>
     <button class="btn ghost" onclick="logout()">Switch user</button>
     <div style="height:8px"></div>
     <button class="btn danger" onclick="deleteProfile()">Delete this profile</button>
@@ -301,7 +303,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js"></script>
+<script src="data.js?v=15"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -1488,24 +1490,57 @@ function renderProfile(){
     ${ov?`<div class="pr-row"><span class="muted">Strength level</span><b>${ov}</b></div>`:""}
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
-    <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>`;
+    <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 15 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
    BOOT
 ============================================================ */
-if(typeof MUSCLES==="undefined"||typeof EX==="undefined"||typeof RULES==="undefined"){
+const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
+  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
+const REQUIRED_DATA_VERSION=15;
+function bootFail(title,detail){
   document.getElementById("app").innerHTML=
-    `<div style="padding:60px 24px;text-align:center">
+    `<div style="padding:50px 22px;text-align:center">
       <div class="display" style="font-size:26px;margin-bottom:14px">Iron<span style="color:#3D6BFF">Log</span></div>
       <div style="background:#2a1e1e;border:1px solid #FF5D5D;border-radius:14px;padding:16px;font-size:14.5px;text-align:left">
-        <b style="color:#FF5D5D">Setup problem: data.js didn't load.</b><br><br>
-        The app config file <b>data.js</b> is missing or unreachable. Fix:<br><br>
-        1. Make sure <b>data.js</b> is uploaded to the repo, in the <b>same folder</b> as index.html.<br>
-        2. Check it loads: open <b>…/data.js</b> in your browser — you should see code, not a 404.<br>
-        3. Then reload this page (pull down to refresh, or close and reopen the app).
-      </div></div>`;
+        <b style="color:#FF5D5D">${title}</b><br><br>${detail}
+      </div>
+      <div style="height:14px"></div>
+      <button class="btn" onclick="forceUpdate()">🔄 Force update &amp; reload</button>
+      <p class="tiny muted" style="margin-top:10px">This clears the app's cached files and reloads. Your profiles, workouts and food log are NOT affected.</p>
+    </div>`;
+}
+async function forceUpdate(){
+  try{
+    if("serviceWorker" in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    if(window.caches){
+      const ks=await caches.keys();
+      await Promise.all(ks.map(k=>caches.delete(k)));
+    }
+  }catch(e){}
+  location.replace(location.pathname+"?r="+Date.now());
+}
+// crash anywhere at boot shows the reason instead of a blank screen
+window.addEventListener("error",e=>{
+  if(document.querySelector(".screen.active"))return;   // already running fine
+  bootFail("The app hit an error while starting.",
+    "This is almost always a half-updated cache. Tap below to clear it and reload.<br><br><span style='opacity:.7;font-size:12px'>"+
+    ((e.message||"unknown error")+"").replace(/[<>]/g,"")+"</span>");
+});
+if(typeof MUSCLES==="undefined"||typeof EX==="undefined"||typeof RULES==="undefined"){
+  bootFail("Setup problem: data.js didn't load.",
+    "Make sure <b>data.js</b> is uploaded next to index.html in your repo, then tap below.");
   throw new Error("data.js missing");
+}
+if(typeof DATA_VERSION==="undefined"||DATA_VERSION<REQUIRED_DATA_VERSION){
+  bootFail("Your data.js is out of date.",
+    "The app files are from different versions, so it can't start. Upload the latest <b>data.js</b>, <b>index.html</b> and <b>sw.js</b> together, then tap below.");
+  throw new Error("data.js version mismatch");
 }
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 if(!window.navigator.standalone&&/iPhone|iPad/.test(navigator.userAgent))$("installbanner").style.display="block";
