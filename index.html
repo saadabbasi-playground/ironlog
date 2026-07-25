@@ -398,6 +398,65 @@ function mkEx(id,sets,prio,first,focusKey){
   return {id, sets, reps:focusReps(id,focusKey), rest:e.type==="compound"?f.restC:f.restI,
     anchor:!!first&&e.type==="compound"&&ANCHORS.has(id), prio:!!prio};
 }
+/* custom days survive regeneration, rotation and priority changes */
+function rebuildPlan(details,rotOffset,startDate){
+  const keep=(me&&me.plan&&me.plan.days||[]).filter(d=>d.custom);
+  const p=generatePlan(details,rotOffset,startDate);
+  p.days=p.days.concat(keep);
+  return p;
+}
+function buildCustomDay(key,name){
+  const t=DAY_TEMPLATES[key]||DAY_TEMPLATES.empty;
+  const mus=t.mus===null?(me.details.priority||[]):t.mus;
+  const seen=new Set(),exercises=[];
+  mus.forEach(m=>{
+    let pool=eqPool(m).filter(id=>!seen.has(id));
+    if(!pool.length)pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!seen.has(id));
+    if(!pool.length)return;
+    const want=(t.sets&&t.sets[m])||3;
+    if(m==="cardio"){
+      const id=pool[0];seen.add(id);
+      exercises.push({id,sets:want,reps:EX[id].reps.slice(),rest:60,custom:true});
+    }else{
+      const id=pool[0];seen.add(id);
+      exercises.push(mkEx(id,Math.min(want,6),false,false,me.details.focus));
+      if(want>=5&&pool.length>1){
+        const p2=pool.find(x=>x!==id&&EX[x].bias!==EX[id].bias)||pool[1];
+        if(p2){seen.add(p2);exercises.push(mkEx(p2,3,false,false,me.details.focus));}
+      }
+    }
+  });
+  return {name:name||t.n,exercises,custom:true,template:key};
+}
+function addCustomDay(key){
+  const d=buildCustomDay(key);
+  me.plan.days.push(d);save();closeModal();renderPlan();
+  toast(`"${d.name}" added — ${d.exercises.length} exercise${d.exercises.length===1?"":"s"} ✓`);
+}
+function openAddDay(){
+  const planned=me.plan.days.length;
+  const warn=planned>=6?`<div class="coach warn"><b>Heads up:</b> you already have ${planned} days. More isn't automatically better — recovery is where growth happens. A light cardio or core day is the safest addition here.</div>`:"";
+  $("modal-body").innerHTML=`<h2 class="display" style="font-size:20px;margin-bottom:4px">Add a day</h2>
+    <p class="tiny muted" style="margin-bottom:12px">Adds to your program permanently. You can swap, add or remove its exercises afterwards like any other day.</p>
+    ${warn}
+    ${Object.entries(DAY_TEMPLATES).map(([k,t])=>{
+      const dis=k==="weak"&&!(me.details.priority||[]).length;
+      return `<div class="lib-item" style="${dis?"opacity:.4":""}" onclick="${dis?`toast('Mark a priority muscle first (Muscles tab)')`:`addCustomDay('${k}')`}">
+        <b>＋ ${esc(t.n)}</b><div class="tiny muted" style="margin-top:3px">${esc(t.d)}</div></div>`;}).join("")}
+    <button class="btn ghost" onclick="closeModal()">Cancel</button>`;
+  $("modal").classList.add("show");
+}
+function renameDay(i){
+  const cur=me.plan.days[i];
+  const v=prompt("Name this day:",cur.name);
+  if(v&&v.trim()){cur.name=v.trim().slice(0,28);save();renderPlan();}
+}
+function deleteDay(i){
+  const d=me.plan.days[i];
+  if(!d.custom){toast("Only added days can be deleted — swap exercises instead");return;}
+  if(!confirm(`Remove "${d.name}" from your program?`))return;
+  me.plan.days.splice(i,1);save();renderPlan();toast("Day removed");
+}
 function mesoWeek(){ // 0-based; last week of meso = deload
   if(!me?.plan?.startDate) return 0;
   const w=Math.floor((Date.now()-new Date(me.plan.startDate))/(7*864e5));
@@ -417,12 +476,20 @@ function exHistory(exId){
   me.history.forEach(h=>{
     const f=h.exercises.find(e=>e.id===exId);
     if(f&&f.sets.length) out.push({date:h.date,sets:f.sets,
-      topW:Math.max(...f.sets.map(s=>s.w)),best:Math.max(...f.sets.map(s=>e1rm(s.w,s.r)))});
+      topW:Math.max(...f.sets.map(s=>+s.w||0)),best:Math.max(...f.sets.map(s=>e1rm(+s.w||0,+s.r||0)))});
   });
   return out;
 }
 function recommendNext(exId,lo,hi){
   const hist=exHistory(exId), tr=targetRIR();
+  if(isTimed(exId)){
+    const withMin=hist.filter(h=>h.sets.some(s=>s.min));
+    if(!withMin.length)return {kind:"new",w:null,msg:`Start with ${lo}–${hi} minutes at a pace you could hold a conversation through.`};
+    const l=withMin[withMin.length-1];
+    const tot=l.sets.reduce((a,s)=>a+(+s.min||0),0), inten=l.sets[l.sets.length-1].int||"moderate";
+    if(tot>=hi)return {kind:"hold",w:null,msg:`Last time ${tot} min (${inten}). You're at the top of the range — hold here, or step the intensity up a notch.`};
+    return {kind:"up",w:null,msg:`Last time ${tot} min (${inten}). Add 2–3 minutes today — build duration before intensity.`};
+  }
   if(!hist.length) return {kind:"new",w:null,
     msg:`First time — pick a weight you could do ~${hi+tr} times, stop ${tr} reps shy of failure (RIR ${tr}).`};
   const last=hist[hist.length-1], top=last.topW;
@@ -616,7 +683,7 @@ function obNext(){
     goal:d.goal,focus:d.focus||"hypertrophy",days:d.days,exp:d.exp,eqs:d.eqs,priority:d.priority,splitPref:d.splitPref,unit:d.unit};
   if(ob.editing){
     me.name=d.name;me.pin=d.pin||null;me.details=details;
-    me.plan=generatePlan(details);save();toast("Program rebuilt ✓");tab("s-plan");
+    me.plan=rebuildPlan(details);save();toast("Program rebuilt ✓");tab("s-plan");
   }else{
     const u={id:Date.now().toString(36),name:d.name,pin:d.pin||null,color:COLORS[users.length%COLORS.length],
       details,plan:generatePlan(details),history:[],food:{}};
@@ -625,11 +692,11 @@ function obNext(){
 }
 function obBack(){if(ob.step>0){ob.step--;renderOb();}else back();}
 function rotateAccessories(){
-  me.plan=generatePlan(me.details,(me.plan.rotOffset||0)+1,me.plan.startDate);
+  me.plan=rebuildPlan(me.details,(me.plan.rotOffset||0)+1,me.plan.startDate);
   save();toast("Accessories rotated — anchors kept ✓");render("s-plan");
 }
 function newMeso(){
-  me.plan=generatePlan(me.details,me.plan.rotOffset||0,new Date().toISOString());
+  me.plan=rebuildPlan(me.details,me.plan.rotOffset||0,new Date().toISOString());
   save();toast("New mesocycle started ✓");render("s-plan");
 }
 
@@ -651,13 +718,62 @@ function coachTips(){
   const st=stalledExercises();
   if(st.length) tips.push({c:"warn",h:"Plateau",t:`${st.slice(0,2).join(" & ")}: no strength gain in 3 sessions. Deload it ~10% and rebuild, or swap it for a month.`});
   if(weeksOnPlan()>=RULES.rotateAfterWeeks) tips.push({c:"",h:"Rotation due",t:`${weeksOnPlan()} weeks on these exercises. Rotate accessories (Program tab) to keep joints fresh and progress moving.`});
-  return tips.slice(0,3);
+  tips.push(...pushTips());
+  return tips.slice(0,4);
+}
+
+/* ---------- nudges: earned suggestions, not nagging ---------- */
+function cardioMinutes(offset){
+  let mod=0,vig=0;
+  weekSessions(offset).forEach(h=>h.exercises.forEach(e=>{
+    if(!isTimed(e.id))return;
+    e.sets.forEach(s=>{const m=+s.min||0;
+      if((s.int||"moderate")==="hard")vig+=m; else if(s.int==="easy")mod+=m*0.6; else mod+=m;});
+  }));
+  return {mod:Math.round(mod),vig:Math.round(vig),
+    pct:Math.round((mod/CARDIO_GUIDE.modMin + vig/CARDIO_GUIDE.vigMin)*100)};
+}
+function fullWeeksHit(){
+  let n=0;
+  for(let i=0;i<6;i++){ if(weekSessions(i).length>=me.details.days)n++; else break; }
+  return n;
+}
+function pushTips(){
+  const out=[],H=me.history;
+  if(H.length<3)return out;
+  const hasExtra=me.plan.days.some(d=>d.custom);
+  const hasCardio=me.plan.days.some(d=>d.exercises.some(e=>isTimed(e.id)));
+  const c=cardioMinutes(0);
+  // 1. earned the right to add a day
+  if(!hasExtra&&fullWeeksHit()>=2&&me.plan.days.length<6)
+    out.push({c:"good",h:"You've earned more",t:`${fullWeeksHit()} weeks running you've hit every planned session. That's the signal you can handle a 4th day — abs & cardio is the lowest-recovery-cost option. Program tab → Add a day.`});
+  // 2. cardio gap
+  if(H.length>=5&&!hasCardio&&c.pct<40)
+    out.push({c:"",h:"Cardio gap",t:`No conditioning logged this week. ${CARDIO_GUIDE.modMin} min of moderate cardio weekly is the health guideline — steady walking or cycling won't cost you muscle. Add it as its own day or tack it onto a session.`});
+  else if(hasCardio&&c.pct>0&&c.pct<100)
+    out.push({c:"",h:"Cardio",t:`${c.mod+c.vig} min logged this week — about ${c.pct}% of the ${CARDIO_GUIDE.modMin}-min guideline. A couple more walks closes the gap.`});
+  else if(c.pct>=100)
+    out.push({c:"good",h:"Cardio done",t:`You've met the weekly cardio guideline. Heart, recovery and appetite control all benefit.`});
+  // 3. a muscle sitting under MEV
+  const low=Object.keys(MUSCLES).filter(m=>!MUSCLES[m].notMuscle)
+    .map(m=>({m,d:weekSetsFor(m),mev:LANDMARKS[m].mev}))
+    .filter(x=>x.d>0&&x.d<x.mev*0.6);
+  if(low.length&&H.length>=4)
+    out.push({c:"warn",h:"Under-trained",t:`${MUSCLES[low[0].m].n} is at ${low[0].d} sets this week, under its ${low[0].mev}-set minimum. Prioritise it in the Muscles tab, or add an accessory day.`});
+  // 4. overreaching guard — pushes back the other way
+  const over=Object.keys(MUSCLES).filter(m=>!MUSCLES[m].notMuscle)
+    .filter(m=>weekSetsFor(m)>LANDMARKS[m].mrv);
+  if(over.length)
+    out.push({c:"warn",h:"Easing off beats adding",t:`${MUSCLES[over[0]].n} is above its recoverable ceiling this week. More sets past this point cost recovery without buying growth — hold volume steady or take the deload early.`});
+  return out;
 }
 
 /* ============================================================
    TODAY
 ============================================================ */
-function nextDayIdx(){const last=me.history[me.history.length-1];return last?((last.dayIdx??-1)+1)%me.plan.days.length:0;}
+function nextDayIdx(){
+  const last=[...me.history].reverse().find(h=>h.dayIdx>=0&&h.dayIdx<me.plan.days.length);
+  return last?(last.dayIdx+1)%me.plan.days.length:0;}
 let todayPick=null;
 function pickDay(i){todayPick=i;renderToday();}
 function renderToday(){
@@ -690,6 +806,7 @@ function renderToday(){
       <div class="tiny muted num">${p} / ${t.pMid} g</div></div>`;
   }
   const n=me.history.length;
+  html+=`<button class="btn ghost" style="margin-bottom:12px" onclick="startFreestyle()">⚡ One-off session (log anything)</button>`;
   html+=`<div class="row"><div class="card" style="flex:1;text-align:center;margin:0"><div class="display num" style="font-size:22px">${n}</div><div class="tiny muted">workouts</div></div>
     <div class="card" style="flex:1;text-align:center;margin:0"><div class="display num" style="font-size:22px">${streak()}</div><div class="tiny muted">week streak</div></div>
     <div class="card" style="flex:1;text-align:center;margin:0"><div class="display num" style="font-size:22px">${Math.round(me.history.reduce((a,h)=>a+h.volume,0)/1000)}k</div><div class="tiny muted">${unit()} lifted</div></div></div>`;
@@ -721,12 +838,16 @@ function renderPlan(){
     <div class="coach good"><b>${esc(F.n)}:</b> ${esc(F.note)}</div>
     <div class="coach"><b>${esc(GOALS[me.details.goal])}:</b> ${esc(G.note)} <span class="blue" style="cursor:pointer" onclick="openScience()">See the evidence ›</span></div>`;
   html+=me.plan.days.map((d,i)=>`<div class="card">
-    <div class="spread"><b class="display" style="font-size:15px">Day ${i+1} · ${esc(d.name)}</b>
-      <button class="btn small ghost" onclick="startWorkout(${i})">Start</button></div><div style="height:8px"></div>
+    <div class="spread"><b class="display" style="font-size:15px">Day ${i+1} · ${esc(d.name)}${d.custom?' <span class="pill" style="font-size:9px">ADDED</span>':""}</b>
+      <span class="row"><button class="exmenu" style="width:30px;height:30px;font-size:13px" onclick="renameDay(${i})">✎</button>
+      ${d.custom?`<button class="exmenu" style="width:30px;height:30px;font-size:13px;color:var(--red)" onclick="deleteDay(${i})">✕</button>`:""}
+      <button class="btn small ghost" onclick="startWorkout(${i})">Start</button></span></div><div style="height:8px"></div>
     ${d.exercises.map((e,xi)=>`<div class="ex-line"><span class="howto-link" onclick="showHowTo('${e.id}')">${esc(EX[e.id].n)}${e.anchor?' <span class="pill dim" style="font-size:10px">ANCHOR</span>':""}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
       <span class="row"><span class="muted num">${e.sets}×${e.reps[0]}–${e.reps[1]}</span><button class="exmenu" style="width:30px;height:30px;font-size:15px" onclick="planOptions(${i},${xi})">⇄</button></span></div>`).join("")}
   </div>`).join("");
-  html+=`<button class="btn ghost" onclick="rotateAccessories()">⇄ Rotate accessory exercises</button><div style="height:8px"></div>
+  html+=`<button class="btn" onclick="openAddDay()">＋ Add a day (abs, cardio, arms…)</button><div style="height:8px"></div>
+    <button class="btn ghost" onclick="startFreestyle()">⚡ Start a one-off session</button><div style="height:8px"></div>
+    <button class="btn ghost" onclick="rotateAccessories()">⇄ Rotate accessory exercises</button><div style="height:8px"></div>
     <button class="btn ghost" onclick="newMeso()">↻ Start a new mesocycle (week 1)</button>`;
   $("p-body").innerHTML=html;
 }
@@ -762,7 +883,7 @@ function bodySVG(side){
 }
 function renderMuscles(){
   $("bodymap").innerHTML=bodySVG("front")+bodySVG("back");
-  $("mus-chips").innerHTML=Object.entries(MUSCLES).map(([k,v])=>
+  $("mus-chips").innerHTML=Object.entries(MUSCLES).filter(([k,v])=>!v.notMuscle).map(([k,v])=>
     `<div class="chip ${me.details.priority.includes(k)?"sel":""}" onclick="openMuscle('${k}')">${v.n}</div>`).join("");
   renderExSearch();
 }
@@ -814,7 +935,7 @@ function togglePrio(m){
   const p=me.details.priority;
   if(p.includes(m)) me.details.priority=p.filter(x=>x!==m);
   else{ if(p.length>=2){toast("Max 2 priorities — remove one first");return;} p.push(m); }
-  me.plan=generatePlan(me.details,me.plan.rotOffset||0,me.plan.startDate);
+  me.plan=rebuildPlan(me.details,me.plan.rotOffset||0,me.plan.startDate);
   save();renderMuscle();toast("Program updated ✓");
 }
 
@@ -829,10 +950,17 @@ function startWorkout(dayIdx){
   const day=me.plan.days[dayIdx],dl=isDeload();
   live={dayIdx,name:day.name,start:Date.now(),deload:dl,rir:targetRIR(),
     ex:day.exercises.map(e=>({id:e.id,rest:e.rest,lo:e.reps[0],hi:e.reps[1],
-      sets:Array.from({length:dl?Math.max(1,Math.round(e.sets*RULES.deloadSetFactor)):e.sets},()=>({w:"",r:"",rir:"",done:false}))}))};
+      sets:Array.from({length:dl&&!isTimed(e.id)?Math.max(1,Math.round(e.sets*RULES.deloadSetFactor)):e.sets},
+        ()=>isTimed(e.id)?{min:"",int:"moderate",w:0,r:0,done:false}:{w:"",r:"",rir:"",done:false})}))};
   saveDraft();openWorkout();
 }
 function resumeWorkout(){if(live)openWorkout();}
+function startFreestyle(){
+  if(live&&!confirm("You have a paused workout. Start a new one and discard it?"))return;
+  live={dayIdx:-1,name:"One-off session",start:Date.now(),deload:false,rir:targetRIR(),ex:[]};
+  saveDraft();closeModal();openWorkout();
+  toast("Empty session — tap Add exercise to build it");
+}
 function openWorkout(){
   $("w-title").textContent=live.name;
   $("w-meso").innerHTML=(live.deload
@@ -854,12 +982,22 @@ function renderWorkout(){
     const rec=recommendNext(e.id,e.lo,e.hi);
     const hist=exHistory(e.id),last=hist[hist.length-1];
     const recW=rec.w?fmt1(rec.w):"";
+    const timed=isTimed(e.id);
     return `<div class="card exercise-block">
       <div class="spread"><h3>${esc(EX[e.id].n)}</h3>
         <span class="row"><span class="howto-link" onclick="showHowTo('${e.id}')">How to</span>
         <button class="btn small ghost" style="padding:7px 11px" onclick="exOptions(${ei})">⇄ Swap</button></span></div>
-      <div class="tiny muted">${e.sets.length} sets × ${e.lo}–${e.hi} · rest ${e.rest}s · RIR ${live.deload?4:live.rir}</div>
+      <div class="tiny muted">${timed?`${e.sets.length} bout${e.sets.length===1?"":"s"} · ${e.lo}–${e.hi} min target`:`${e.sets.length} sets × ${e.lo}–${e.hi} · rest ${e.rest}s · RIR ${live.deload?4:live.rir}`}</div>
       <div class="rec ${rec.kind}">${rec.kind==="up"?"📈 ":rec.kind==="hold"?"🎯 ":"✨ "}${esc(rec.msg)}</div>
+      ${timed?`
+      <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1.6fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">MINUTES</span><span style="text-align:center">INTENSITY</span><span style="text-align:center">✓</span></div>
+      ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:26px 1fr 1.6fr 46px">
+        <span class="set-num num">${si+1}</span>
+        <input inputmode="numeric" class="num" placeholder="${last&&last.sets[si]&&last.sets[si].min?last.sets[si].min:e.lo}" value="${s.min||""}" onchange="setVal(${ei},${si},'min',this.value)">
+        <select class="f" style="padding:10px 6px;font-size:14px" onchange="setVal(${ei},${si},'int',this.value)">
+          ${INTENSITIES.map(x=>`<option value="${x}" ${(s.int||"moderate")===x?"selected":""}>${x}</option>`).join("")}</select>
+        <button class="set-done ${s.done?"on":""}" onclick="toggleSet(${ei},${si},this)">${s.done?"✓":""}</button></div>`).join("")}
+      <button class="btn small ghost" onclick="addSet(${ei})">＋ Add bout</button>`:`
       <div class="set-row tiny muted" style="margin-bottom:4px"><span></span><span style="text-align:center">${unit().toUpperCase()}</span><span style="text-align:center">REPS</span><span style="text-align:center">RIR</span><span style="text-align:center">✓</span></div>
       ${e.sets.map((s,si)=>{
         const pw=recW!==""?recW:(last&&last.sets[si]?last.sets[si].w:"–");
@@ -870,23 +1008,30 @@ function renderWorkout(){
         <input inputmode="numeric" class="num" placeholder="${pr}" value="${s.r}" onchange="setVal(${ei},${si},'r',this.value)">
         <input inputmode="numeric" class="num" placeholder="${live.deload?4:live.rir}" value="${s.rir}" onchange="setVal(${ei},${si},'rir',this.value)">
         <button class="set-done ${s.done?"on":""}" onclick="toggleSet(${ei},${si},this)">${s.done?"✓":""}</button></div>`;}).join("")}
-      <button class="btn small ghost" onclick="addSet(${ei})">＋ Add set</button>
+      <button class="btn small ghost" onclick="addSet(${ei})">＋ Add set</button>`}
     </div>`;
   }).join("");
   updateBarViz();
 }
 function setVal(ei,si,k,v){live.ex[ei].sets[si][k]=v;saveDraft();}
-function addSet(ei){live.ex[ei].sets.push({w:"",r:"",rir:"",done:false});saveDraft();renderWorkout();}
+function addSet(ei){live.ex[ei].sets.push(isTimed(live.ex[ei].id)?{min:"",int:"moderate",w:0,r:0,done:false}:{w:"",r:"",rir:"",done:false});saveDraft();renderWorkout();}
 function toggleSet(ei,si,btn){
-  const s=live.ex[ei].sets[si];
+  const e=live.ex[ei],s=e.sets[si];
   if(!s.done){
     const ins=btn.parentElement.querySelectorAll("input");
-    if(!s.w)s.w=ins[0].value||ins[0].placeholder.replace("–","");
-    if(!s.r)s.r=ins[1].value||String(ins[1].placeholder).replace("–","");
-    if(s.rir==="")s.rir=ins[2].value||ins[2].placeholder;
-    ins[0].value=s.w;ins[1].value=s.r;ins[2].value=s.rir;
+    if(isTimed(e.id)){
+      if(!s.min)s.min=ins[0].value||ins[0].placeholder;
+      ins[0].value=s.min;
+      if(!s.int)s.int=btn.parentElement.querySelector("select")?.value||"moderate";
+      s.w=0;s.r=0;
+    }else{
+      if(!s.w)s.w=ins[0].value||ins[0].placeholder.replace("–","");
+      if(!s.r)s.r=ins[1].value||String(ins[1].placeholder).replace("–","");
+      if(s.rir==="")s.rir=ins[2].value||ins[2].placeholder;
+      ins[0].value=s.w;ins[1].value=s.r;ins[2].value=s.rir;
+    }
     s.done=true;btn.classList.add("on");btn.textContent="✓";
-    startRest(live.ex[ei].rest);
+    if(!isTimed(e.id))startRest(e.rest);
   }else{s.done=false;btn.classList.remove("on");btn.textContent="";}
   saveDraft();updateBarViz();
 }
@@ -946,9 +1091,9 @@ function planSwap(di,xi,id){
     rest:EX[id].type==="compound"?150:90,anchor:!!cur.anchor&&ANCHORS.has(id),prio:!!cur.prio};
   save();closeModal();renderPlan();toast("Program updated ✓");
 }
-function swapEx(ei,id){const e=live.ex[ei];
-  live.ex[ei]={id,rest:EX[id].type==="compound"?150:90,lo:EX[id].reps[0],hi:EX[id].reps[1],
-    sets:e.sets.map(()=>({w:"",r:"",rir:"",done:false}))};
+function swapEx(ei,id){const e=live.ex[ei],t=isTimed(id);
+  live.ex[ei]={id,rest:t?60:(EX[id].type==="compound"?150:90),lo:EX[id].reps[0],hi:EX[id].reps[1],
+    sets:e.sets.map(()=>t?{min:"",int:"moderate",w:0,r:0,done:false}:{w:"",r:"",rir:"",done:false})};
   saveDraft();closeModal();renderWorkout();toast("Swapped ✓");}
 function removeEx(ei){live.ex.splice(ei,1);saveDraft();closeModal();renderWorkout();}
 function openAddExercise(){
@@ -975,8 +1120,9 @@ function rirHelp(){
   $("modal").classList.add("show");
 }
 function addExToLive(id){
-  live.ex.push({id,rest:EX[id].type==="compound"?150:90,lo:EX[id].reps[0],hi:EX[id].reps[1],
-    sets:Array.from({length:3},()=>({w:"",r:"",rir:"",done:false}))});
+  const t=isTimed(id);
+  live.ex.push({id,rest:t?60:(EX[id].type==="compound"?150:90),lo:EX[id].reps[0],hi:EX[id].reps[1],
+    sets:Array.from({length:t?1:3},()=>t?{min:"",int:"moderate",w:0,r:0,done:false}:{w:"",r:"",rir:"",done:false})});
   saveDraft();closeModal();renderWorkout();toast("Added ✓");
 }
 function startRest(sec){
@@ -991,7 +1137,9 @@ function stopRest(){clearInterval(restIv);restIv=null;$("resttimer").classList.r
 
 function finishWorkout(){
   const exercises=live.ex.map(e=>({id:e.id,name:EX[e.id].n,
-    sets:e.sets.filter(s=>s.done&&s.r).map(s=>({w:parseFloat(s.w)||0,r:parseInt(s.r)||0,rir:s.rir===""?null:+s.rir}))
+    sets:e.sets.filter(s=>s.done&&(isTimed(e.id)?s.min:s.r)).map(s=>isTimed(e.id)
+      ?{min:parseFloat(s.min)||0,int:s.int||"moderate",w:0,r:0}
+      :{w:parseFloat(s.w)||0,r:parseInt(s.r)||0,rir:s.rir===""?null:+s.rir})
   })).filter(e=>e.sets.length);
   if(!exercises.length){toast("Log at least one set first");return;}
   const prevMax={},prevBest={};
@@ -1021,6 +1169,8 @@ function renderSummary(entry,prevMax,prevBest,sameDayPrev){
     const best=Math.max(...e.sets.map(s=>e1rm(s.w,s.r))),prev=prevBest[e.id]||0;
     const ar=prev===0?`<span class="pill">first log</span>`:best>prev+0.5?`<span class="arrow-up">▲ stronger</span>`
       :best<prev-0.5?`<span class="arrow-dn">▼ down</span>`:`<span class="arrow-eq">— even</span>`;
+    if(isTimed(e.id)){const tot=e.sets.reduce((a,s)=>a+(+s.min||0),0);
+      return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${tot} min</span></span><span class="pill dim" style="font-size:10px">CARDIO</span></div>`;}
     return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${e.sets.map(s=>s.w+"×"+s.r).join(", ")}</span></span>${ar}</div>`;}).join("");
   $("sum-body").innerHTML=`
     <div class="sum-hero"><div class="pill green">WORKOUT SAVED</div>
@@ -1112,7 +1262,7 @@ function renderProgress(){
   for(let i=7;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i*7);weeks.push(isoWeek(d));}
   const vals=weeks.map(w=>byWeek[w]||0),max=Math.max(...vals,1);
   // per-muscle weekly sets vs plan
-  const musHtml=Object.keys(MUSCLES).map(m=>lmBar(m,weekSetsFor(m),weeklyTarget(m,me.details))).join("");
+  const musHtml=Object.keys(MUSCLES).filter(m=>!MUSCLES[m].notMuscle).map(m=>lmBar(m,weekSetsFor(m),weeklyTarget(m,me.details))).join("");
   // anchors e1rm
   const anchorIds=[...new Set(H.flatMap(h=>h.exercises.map(e=>e.id)))].filter(id=>ANCHORS.has(id));
   const anchorHtml=anchorIds.map(id=>{
@@ -1160,7 +1310,9 @@ function openHist(i){
   $("hd-body").innerHTML=`
     <p class="sub">${new Date(h.date).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})} · ${Math.round(h.volume).toLocaleString()} ${unit()}${h.dur?` · ${h.dur} min`:""}</p>
     ${h.exercises.map(e=>`<div class="card"><b>${esc(e.name)}</b>
-      <div class="tiny muted num" style="margin-top:4px">${e.sets.map(s=>`${s.w} ${unit()} × ${s.r}${s.rir!=null?` @${s.rir}RIR`:""}`).join("  ·  ")}</div></div>`).join("")}
+      <div class="tiny muted num" style="margin-top:4px">${isTimed(e.id)
+        ?e.sets.map(s=>`${s.min} min (${s.int||"moderate"})`).join("  ·  ")
+        :e.sets.map(s=>`${s.w} ${unit()} × ${s.r}${s.rir!=null?` @${s.rir}RIR`:""}`).join("  ·  ")}</div></div>`).join("")}
     <button class="btn ghost" onclick="repeatHist(${i})">↻ Repeat this workout</button>
     <div style="height:8px"></div>
     <button class="btn danger" onclick="deleteHist(${i})">Delete this workout</button>`;
@@ -1176,7 +1328,7 @@ function repeatHist(i){
   live={dayIdx:h.dayIdx,name:h.name,start:Date.now(),deload:isDeload(),rir:targetRIR(),
     ex:h.exercises.filter(e=>EX[e.id]).map(e=>({id:e.id,rest:EX[e.id].type==="compound"?150:90,
       lo:EX[e.id].reps[0],hi:EX[e.id].reps[1],
-      sets:e.sets.map(()=>({w:"",r:"",rir:"",done:false}))}))};
+      sets:e.sets.map(()=>isTimed(e.id)?{min:"",int:"moderate",w:0,r:0,done:false}:{w:"",r:"",rir:"",done:false})}))};
   saveDraft();openWorkout();
 }
 
@@ -1253,7 +1405,7 @@ function renderGrowth(){
     html+=`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:8px">MEASUREMENT TRENDS · ${M.length} ENTR${M.length===1?"Y":"IES"}</div>${rows}</div>`;
   }
   // ---- training stimulus ----
-  const stim=Object.keys(MUSCLES).map(m=>({m,s:muscleStimulus(m)})).filter(x=>x.s.sets||x.s.setsPrev);
+  const stim=Object.keys(MUSCLES).filter(m=>!MUSCLES[m].notMuscle).map(m=>({m,s:muscleStimulus(m)})).filter(x=>x.s.sets||x.s.setsPrev);
   if(stim.length){
     html+=`<div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:8px">TRAINING STIMULUS · LAST 4 WEEKS vs PREVIOUS 4</div>
     ${stim.map(({m,s})=>{
