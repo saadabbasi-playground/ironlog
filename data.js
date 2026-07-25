@@ -662,3 +662,225 @@ const MEASURES = [
 ];
 /* Which muscle each measurement reflects, for the growth view */
 const MEASURE_MUSCLE = {chest:"chest", shoulders:"shoulders", arm:"biceps", thigh:"quads", calf:"calves"};
+
+/* ============================================================
+   EXPANSION 2 — gap-fill: forearms, missing staples, more variants
+============================================================ */
+MUSCLES.forearms={n:"Forearms",subs:{flexors:"Flexors (grip)",extensors:"Extensors"}};
+LANDMARKS.forearms={mev:4,mav:10,mrv:16,conf:"est"};
+
+Object.assign(EX,{
+/* ---- FOREARMS (new group) ---- */
+wrist_curl:{n:"Wrist Curl",m:"forearms",sub:["flexors"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[12,20],
+  why:"Direct flexor work — the forearm's main mass. Full range from a deep stretch matters more than load here.",
+  cues:["Forearms on a bench, palms up, wrists off the edge.","Let the weight roll to the fingertips.","Curl up and squeeze."],
+  faults:["Moving the elbows.","Tiny partial reps."]},
+rev_wrist_curl:{n:"Reverse Wrist Curl",m:"forearms",sub:["extensors"],sec:[],bias:"mid",type:"isolation",eq:"db",reps:[12,20],
+  why:"Balances the flexors — extensor work helps elbow health for anyone doing lots of curls and pulls.",
+  cues:["Palms down, forearms braced.","Lift the knuckles toward the ceiling.","Very light weight, slow tempo."],
+  faults:["Going too heavy.","Using the elbows."]},
+farmer_carry:{n:"Farmer's Carry",m:"forearms",sub:["flexors"],sec:["core","back"],bias:"mid",type:"compound",eq:"db",reps:[30,60],
+  why:"Heavy loaded carry builds crushing grip plus trunk stability. Reps here = seconds carried.",
+  cues:["Heavy dumbbells at your sides, tall posture.","Ribs down, shoulders back.","Walk smoothly — no waddling."],
+  faults:["Leaning to one side.","Shrugging the shoulders up."]},
+dead_hang:{n:"Dead Hang",m:"forearms",sub:["flexors"],sec:["back"],bias:"stretch",type:"isolation",eq:"bw",reps:[20,60],
+  why:"Grip endurance and shoulder decompression with zero equipment. Reps = seconds.",
+  cues:["Hang from a bar, arms straight.","Shoulders active, not fully slack.","Breathe and hold."],
+  faults:["Death-gripping and swinging.","Fully shrugged passive hanging."]},
+/* ---- CHEST gaps ---- */
+decline_press:{n:"Decline Bench Press",m:"chest",sub:["lower"],sec:["triceps"],bias:"mid",type:"compound",eq:"bb",reps:[6,10],
+  why:"Loads the lower/costal pec fibres more than a flat press.",
+  cues:["Slight decline (~15°), feet secured.","Lower to the lower chest.","Press without locking harshly."],
+  faults:["Too steep a decline.","Bouncing off the ribs."]},
+db_pullover:{n:"Dumbbell Pullover",m:"chest",sub:["mid"],sec:["back"],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],
+  why:"Loads the pecs (and lats) in a deep overhead stretch — a position nothing else covers.",
+  cues:["Lie across or along a bench, one dumbbell overhead.","Lower behind the head to a strong stretch.","Pull back over the chest with slight elbow bend."],
+  faults:["Bending the elbows into a press.","Going so deep the shoulders pinch."]},
+/* ---- BACK gaps ---- */
+straight_arm_pd:{n:"Straight-Arm Pulldown",m:"back",sub:["lats"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[10,15],
+  why:"Isolates the lats with zero biceps involvement — pure lat contraction training.",
+  cues:["Arms nearly straight, hinge slightly.","Sweep the bar to the thighs.","Squeeze the lats, control back overhead."],
+  faults:["Bending elbows into a pushdown.","Using bodyweight to drive the bar down."]},
+single_cable_row:{n:"Single-Arm Cable Row",m:"back",sub:["lats"],sec:["biceps"],bias:"stretch",type:"compound",eq:"cb",reps:[10,15],
+  why:"Unilateral rowing with a longer stretch than a two-arm row, and it exposes side-to-side imbalances.",
+  cues:["Let the cable pull the shoulder into a full stretch.","Row to the hip, elbow back.","Resist the return."],
+  faults:["Twisting the torso to pull.","Cutting the stretch short."]},
+meadows_row:{n:"Landmine / Meadows Row",m:"back",sub:["lats"],sec:["biceps"],bias:"stretch",type:"compound",eq:"bb",reps:[8,12],
+  why:"Angled bar path gives a deep unilateral lat stretch under heavy load.",
+  cues:["Stand side-on to a landmine bar, hinge over.","Pull the sleeve to the hip.","Full stretch at the bottom."],
+  faults:["Rotating the torso open.","Jerking with the lower back."]},
+/* ---- SHOULDERS gaps ---- */
+cable_rear_delt:{n:"Cable Rear Delt Fly",m:"back",sub:["rear"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[12,20],
+  why:"Constant tension on the rear delts through the full range — better than dumbbells at the stretch.",
+  cues:["Cables crossed at chest height.","Sweep out and back, thumbs slightly down.","Squeeze, then resist the return."],
+  faults:["Turning it into a row.","Shrugging the traps."]},
+upright_row:{n:"Cable Upright Row",m:"shoulders",sub:["side"],sec:["back"],bias:"mid",type:"compound",eq:"cb",reps:[10,15],
+  why:"Loads the side delts with more weight than a lateral raise. Stop at chest height to protect the shoulder.",
+  cues:["Wide-ish grip, elbows lead.","Pull only to lower-chest height.","Control down."],
+  faults:["Pulling to the chin with a narrow grip (impingement risk).","Heaving with the hips."]},
+/* ---- TRICEPS gaps ---- */
+diamond_pushup:{n:"Diamond Push-Up",m:"triceps",sub:["lateral","medial"],sec:["chest"],bias:"mid",type:"compound",eq:"bw",reps:[8,20],
+  why:"The most triceps-dominant push-up variation — no equipment required.",
+  cues:["Hands together under the chest, thumbs and index fingers touching.","Elbows tucked close.","Lower fully, press to lockout."],
+  faults:["Elbows flaring out.","Hips sagging."]},
+jm_press:{n:"JM Press",m:"triceps",sub:["long","lateral"],sec:[],bias:"mid",type:"compound",eq:"bb",reps:[6,10],
+  why:"Hybrid of close-grip press and skull crusher — heavy triceps loading with a friendlier elbow position.",
+  cues:["Close grip, lower the bar toward the upper chest/neck with elbows forward.","Short controlled path.","Press back to lockout."],
+  faults:["Letting it become a normal press.","Going too heavy before the technique is grooved."]},
+/* ---- QUADS / LEGS gaps ---- */
+belt_squat:{n:"Belt Squat",m:"quads",sub:["vasti"],sec:["glutes"],bias:"stretch",type:"compound",eq:"mc",reps:[8,15],
+  why:"Heavy leg loading with no spinal compression — ideal when the lower back is fatigued.",
+  cues:["Belt around the hips, feet on the platform.","Squat to depth, torso tall.","Drive through mid-foot."],
+  faults:["Cutting depth.","Leaning on the handles to assist."]},
+pendulum_squat:{n:"Pendulum / V-Squat",m:"quads",sub:["vasti"],sec:["glutes"],bias:"stretch",type:"compound",eq:"mc",reps:[8,15],
+  why:"Arcing path keeps tension on the quads through a very deep stretch.",
+  cues:["Feet mid-platform, back flat on the pad.","Sink as deep as control allows.","Drive up without locking out hard."],
+  faults:["Bouncing at the bottom.","Heels lifting."]},
+kb_swing:{n:"Kettlebell Swing",m:"glutes",sub:["max"],sec:["hamstrings","back"],bias:"short",type:"compound",eq:"db",reps:[12,20],
+  why:"Explosive hip extension — glute power and conditioning in one. Not a squat, and not an arm lift.",
+  cues:["Hinge, hike the bell back between the legs.","Snap the hips forward, squeeze glutes hard.","Bell floats to chest height — arms stay relaxed."],
+  faults:["Squatting instead of hinging.","Lifting the bell with the shoulders."]},
+ghr:{n:"Glute-Ham Raise",m:"hamstrings",sub:["knee"],sec:["glutes"],bias:"stretch",type:"isolation",eq:"mc",reps:[6,12],
+  why:"Trains knee flexion and hip extension together under heavy eccentric load — outstanding hamstring builder.",
+  cues:["Ankles secured, thighs on the pad.","Lower under control with a flat back.","Pull yourself up using the hamstrings."],
+  faults:["Breaking at the hips to cheat.","Free-falling the eccentric."]},
+frog_pump:{n:"Frog Pump",m:"glutes",sub:["max"],sec:[],bias:"short",type:"isolation",eq:"bw",reps:[15,25],
+  why:"Soles-together position takes the quads out and puts the glutes under pure peak contraction.",
+  cues:["Lie on your back, soles together, knees wide.","Drive the hips up, squeeze hard 1s.","High reps — chase the burn."],
+  faults:["Arching the lower back.","Letting the knees drift together."]},
+donkey_calf:{n:"Donkey Calf Raise",m:"calves",sub:["gastroc"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[12,20],
+  why:"Hinged-over position puts the gastrocnemius under a deeper stretch than standing raises.",
+  cues:["Hinge at the hips, hands on a support.","Balls of feet on a step.","Deep 2s stretch, full rise."],
+  faults:["Bouncing.","Standing too upright."]},
+/* ---- CORE gaps ---- */
+reverse_crunch:{n:"Reverse Crunch",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[12,20],
+  why:"Emphasises the lower abdominal region by curling the pelvis rather than the ribs.",
+  cues:["Lie down, knees bent.","Curl the pelvis up off the floor.","Lower slowly — no momentum."],
+  faults:["Swinging the legs.","Pulling with the hip flexors only."]},
+hollow_hold:{n:"Hollow Body Hold",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[20,45],
+  why:"Total anterior-core bracing under tension. Reps = seconds.",
+  cues:["Lower back pressed flat to the floor.","Arms and legs extended, shoulders off the ground.","Breathe shallow, stay rigid."],
+  faults:["Lower back arching off the floor.","Holding the breath."]},
+woodchopper:{n:"Cable Woodchopper",m:"core",sub:["obliques"],sec:[],bias:"mid",type:"isolation",eq:"cb",reps:[10,15],
+  why:"Loaded rotation for the obliques through a full diagonal range.",
+  cues:["Rotate from the trunk, arms fairly straight.","Pivot the back foot.","Control the return, don't get yanked."],
+  faults:["Pulling with the arms only.","Rounding the lower back."]},
+dead_bug:{n:"Dead Bug",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[10,20],
+  why:"Teaches core bracing against limb movement with zero spinal load — good for beginners and sore backs.",
+  cues:["On your back, arms up, knees at 90°.","Lower the opposite arm and leg slowly.","Lower back stays glued to the floor."],
+  faults:["Lower back lifting.","Rushing the reps."]}
+});
+
+/* Re-rank with expansion 2 */
+Object.assign(RANK,{
+  chest:      ["bench","incline_db","dbbench","incline_bb","dips_chest","machine_press","smith_bench","decline_press","db_fly","cable_fly","incline_cable_fly","db_pullover","pec_deck","pushup","deficit_pushup"],
+  back:       ["pullup","pulldown","row_bb","dbrow","chinup","tbar_row","chest_supported_row","row_cable","single_cable_row","meadows_row","machine_row","neutral_pulldown","deadlift","rack_pull","inverted_row","straight_arm_pd","pullover_cb","facepull","cable_rear_delt","reverse_fly","back_ext","shrug_db","barbell_shrug"],
+  shoulders:  ["ohp","dbohp","arnold","machine_ohp","landmine_press","cable_latraise","latraise","machine_latraise","upright_row","front_raise"],
+  biceps:     ["incline_curl","curl","bb_curl","preacher_curl","cable_bayesian","cable_curl","spider_curl","concentration_curl","hammer","reverse_curl"],
+  triceps:    ["ohext","cable_ohext","cgbench","ez_skull","skull","jm_press","db_cgpress","pushdown","bar_pushdown","dip","machine_dip","bench_dip","diamond_pushup","kickback"],
+  quads:      ["squat","hacksquat","legpress","front_squat","pendulum_squat","belt_squat","smith_squat","lunge","step_up","goblet","sissy_squat","legext"],
+  hamstrings: ["rdl","legcurl","ghr","lying_legcurl","db_rdl","good_morning","sl_rdl","nordic"],
+  glutes:     ["hipthrust","bulgarian","db_hipthrust","machine_hipthrust","pullthrough","kb_swing","kickback_glute","frog_pump","abduction"],
+  calves:     ["calf_stand","machine_calf","leg_press_calf","donkey_calf","calf_seated","db_calf"],
+  core:       ["cablecrunch","ab_wheel","legs_raise","machine_crunch","reverse_crunch","decline_crunch","hollow_hold","plank","pallof","woodchopper","side_plank","russian_twist","dead_bug"],
+  forearms:   ["wrist_curl","rev_wrist_curl","farmer_carry","dead_hang"]
+});
+/* Extend movement patterns */
+Object.assign(PATTERNS,{
+  "Flat press":      ["bench","dbbench","smith_bench","machine_press","decline_press","pushup","deficit_pushup"],
+  "Chest fly":       ["cable_fly","db_fly","pec_deck","incline_cable_fly","db_pullover"],
+  "Dip":             ["dips_chest","dip","bench_dip","machine_dip","diamond_pushup"],
+  "Horizontal row":  ["row_bb","dbrow","tbar_row","chest_supported_row","row_cable","machine_row","inverted_row","single_cable_row","meadows_row"],
+  "Lat isolation":   ["pullover_cb","straight_arm_pd"],
+  "Rear delt":       ["facepull","reverse_fly","cable_rear_delt"],
+  "Lateral raise":   ["latraise","cable_latraise","machine_latraise","upright_row"],
+  "Skull crusher":   ["skull","ez_skull","jm_press"],
+  "Squat":           ["squat","front_squat","smith_squat","goblet","hacksquat","legpress","belt_squat","pendulum_squat"],
+  "Leg curl":        ["legcurl","lying_legcurl","nordic","ghr"],
+  "Hip thrust":      ["hipthrust","db_hipthrust","machine_hipthrust","pullthrough","kb_swing","frog_pump"],
+  "Calf (straight)": ["calf_stand","machine_calf","leg_press_calf","db_calf","donkey_calf"],
+  "Ab flexion":      ["cablecrunch","machine_crunch","decline_crunch","legs_raise","ab_wheel","reverse_crunch"],
+  "Anti-rotation":   ["plank","side_plank","pallof","russian_twist","hollow_hold","woodchopper","dead_bug"],
+  "Wrist curl":      ["wrist_curl","rev_wrist_curl"],
+  "Loaded carry":    ["farmer_carry","dead_hang"]
+});
+/* Forearms added to pulling days */
+SPLITS.ppl3.days[1].mus.push("forearms");
+SPLITS.fb3.days[2].mus.push("forearms");
+SPLITS.ul4.days[0].mus.push("forearms");
+SPLITS.pplul5.days[1].mus.push("forearms");
+SPLITS.ppl6.days[1].mus.push("forearms");
+SPLITS.ppl6.days[4].mus.push("forearms");
+MEASURE_MUSCLE.arm="biceps";
+
+/* ============================================================
+   TRAINING GOAL & FOCUS — how goals change the programming
+   Evidence notes inline; conf flags as elsewhere.
+============================================================ */
+const GOAL_TRAINING = {
+  // In a surplus you can recover from more volume; push toward MAV.
+  bulk:   {vol:1.00, note:"Calorie surplus supports higher volume — sets sit toward your max adaptive volume."},
+  // In a deficit, keep LOADS heavy to retain muscle but trim volume ~25% to match reduced recovery.
+  cut:    {vol:0.75, note:"In a deficit, loads stay heavy to retain muscle while volume drops ~25% to match lower recovery capacity."},
+  recomp: {vol:0.90, note:"At maintenance, volume sits slightly below a bulk — enough to grow, not enough to outrun recovery."}
+};
+const FOCUS = {
+  hypertrophy:{n:"Hypertrophy (size)", shift:0,  restC:150, restI:90,  rir:[3,2,2,1],
+    note:"Moderate reps taken close to failure. Load matters less than proximity to failure for growth."},
+  strength:   {n:"Strength (max force)",shift:-4, restC:240, restI:120, rir:[3,3,2,2],
+    note:"Heavy compounds in low rep ranges with long rests. Strength is more load-specific than growth is."},
+  both:       {n:"Powerbuilding (both)",shift:-2, restC:180, restI:100, rir:[3,2,2,1],
+    note:"Heavy-ish compounds for strength, moderate reps on isolation for size."}
+};
+function focusReps(id,focusKey){
+  const e=EX[id], f=FOCUS[focusKey]||FOCUS.hypertrophy;
+  if(e.type!=="compound"||!f.shift) return e.reps.slice();
+  // time-based holds (planks, carries) are never rep-shifted
+  if(e.reps[0]>=20) return e.reps.slice();
+  return [Math.max(3,e.reps[0]+f.shift), Math.max(5,e.reps[1]+f.shift)];
+}
+
+/* ============================================================
+   EVIDENCE BASE — what each rule rests on, and how strongly
+============================================================ */
+const EVIDENCE = [
+  {t:"Volume drives growth, with diminishing returns",c:"strong",
+   d:"Weekly set count per muscle shows a dose-response relationship with hypertrophy; roughly 10+ hard sets per muscle per week outperforms very low volumes, with gains flattening at higher ranges.",
+   s:"Schoenfeld, Ogborn & Krieger (2017), dose-response meta-analysis"},
+  {t:"MEV / MAV / MRV volume landmarks",c:"est",
+   d:"The minimum-effective / maximum-adaptive / maximum-recoverable framework IronLog uses to set your weekly targets is a practitioner model, not a measured constant. Treat the numbers as sensible starting points to adjust by feel.",
+   s:"Israetel et al., Renaissance Periodization volume-landmark framework"},
+  {t:"Training a muscle 2x per week beats 1x at equal volume",c:"moderate",
+   d:"Splitting the same weekly volume across two or more sessions tends to produce slightly better hypertrophy than one session. IronLog warns you when your chosen split trains muscles only once weekly.",
+   s:"Schoenfeld, Ogborn & Krieger (2016), frequency meta-analysis"},
+  {t:"Load matters less than proximity to failure — for size",c:"strong",
+   d:"Heavy and moderate loads produce similar hypertrophy when sets are taken near failure. Maximal strength, by contrast, responds better to heavy loads — which is why the Strength focus lowers your rep ranges.",
+   s:"Schoenfeld et al. (2017), load meta-analysis"},
+  {t:"You don't need to hit absolute failure",c:"moderate",
+   d:"Stopping 1–3 reps short of failure produces comparable growth to training to failure with less fatigue. That's why IronLog prescribes RIR targets rather than 'go to failure every set'.",
+   s:"Refalo et al. (2023) and related proximity-to-failure reviews"},
+  {t:"Stretch-position training may grow muscle faster",c:"moderate",
+   d:"Exercises loading a muscle at long lengths appear to produce more growth than short-position equivalents. IronLog tags every exercise stretch / mid / peak-squeeze and ranks stretch-biased movements highly.",
+   s:"Maeo et al. (2021, 2022) regional hypertrophy studies"},
+  {t:"Overhead triceps work beats pushdowns for the long head",c:"moderate",
+   d:"Training the triceps with the arm overhead produced substantially more long-head growth than pushdowns at matched volume — the reason overhead extensions rank first for triceps.",
+   s:"Maeo et al. (2022), triceps long-head study"},
+  {t:"Seated leg curls beat lying leg curls",c:"moderate",
+   d:"The seated position keeps the hamstrings at longer muscle lengths during knee flexion and produced greater growth than the lying version.",
+   s:"Maeo et al. (2021), hamstring study"},
+  {t:"Protein 1.6–2.2 g/kg supports muscle gain",c:"strong",
+   d:"Intakes around 1.6 g/kg/day capture most of the resistance-training benefit, with an upper bound near 2.2 g/kg. IronLog targets 1.8 g/kg and shows the full range.",
+   s:"Morton et al. (2018), protein meta-analysis"},
+  {t:"Protein spread across meals",c:"moderate",
+   d:"Distributing protein across 3–5 meals of roughly 0.3–0.5 g/kg each appears to support muscle-protein synthesis better than skewing it into one or two meals.",
+   s:"Areta et al. (2013) and subsequent distribution research"},
+  {t:"Deficits: keep intensity, trim volume",c:"moderate",
+   d:"Maintaining heavy loads while modestly reducing volume, alongside high protein, is the best-supported way to retain muscle while losing fat. IronLog's Lose-fat goal cuts sets ~25% and leaves your prescribed loads alone.",
+   s:"Murphy & Koehler (2022) and energy-deficit resistance-training literature"},
+  {t:"Deloads and periodised effort",c:"est",
+   d:"Scheduling a lighter week every 4–6 weeks and ramping effort (RIR 3 → 1) across a block is standard practice with limited direct trial evidence. It's a fatigue-management convention rather than a proven requirement.",
+   s:"Practitioner consensus; limited controlled data"},
+  {t:"Strength standards and estimated 1RM",c:"est",
+   d:"Level thresholds are community-derived bodyweight ratios, and e1RM uses the Epley formula, which drifts at high rep counts. Directional, not diagnostic.",
+   s:"Epley (1985) formula; community strength standards"}
+];
