@@ -970,3 +970,6 @@ const DAY_TEMPLATES={
   empty:{n:"Custom", mus:[], sets:{},
     d:"Start empty and add exactly the exercises you want."}
 };
+
+/* bumped whenever index.html requires new symbols from this file */
+const DATA_VERSION = 15;
