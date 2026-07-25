@@ -331,11 +331,11 @@ legs_raise:{n:"Hanging Leg Raise",m:"core",sub:["rectus"],sec:[],bias:"stretch",
   why:"Trains the lower abdominal region with a loaded stretch at the hang.",
   cues:["Raise by curling the pelvis up, not just lifting legs.","No swinging.","Bend knees to regress."],
   faults:["Swinging momentum.","Only moving at the hips."]},
-plank:{n:"Plank",m:"core",sub:["rectus","obliques"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[30,60],
+plank:{n:"Plank",m:"core",sub:["rectus","obliques"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[30,60],track:"hold",
   why:"Anti-extension bracing — the foundation under every heavy lift. Reps here = seconds.",
   cues:["Forearms down, one straight line.","Squeeze glutes, brace like taking a punch.","Breathe steadily."],
   faults:["Sagging hips.","Piking up."]},
-side_plank:{n:"Side Plank",m:"core",sub:["obliques"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[20,45],
+side_plank:{n:"Side Plank",m:"core",sub:["obliques"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[20,45],track:"hold",
   why:"Direct oblique and lateral-chain work. Reps = seconds per side.",
   cues:["Elbow under the shoulder.","Hips high — straight line.","Stack or stagger the feet."],
   faults:["Hips dropping.","Rolling forward."]}
@@ -679,11 +679,11 @@ rev_wrist_curl:{n:"Reverse Wrist Curl",m:"forearms",sub:["extensors"],sec:[],bia
   why:"Balances the flexors — extensor work helps elbow health for anyone doing lots of curls and pulls.",
   cues:["Palms down, forearms braced.","Lift the knuckles toward the ceiling.","Very light weight, slow tempo."],
   faults:["Going too heavy.","Using the elbows."]},
-farmer_carry:{n:"Farmer's Carry",m:"forearms",sub:["flexors"],sec:["core","back"],bias:"mid",type:"compound",eq:"db",reps:[30,60],
+farmer_carry:{n:"Farmer's Carry",m:"forearms",sub:["flexors"],sec:["core","back"],bias:"mid",type:"compound",eq:"db",reps:[30,60],track:"hold",
   why:"Heavy loaded carry builds crushing grip plus trunk stability. Reps here = seconds carried.",
   cues:["Heavy dumbbells at your sides, tall posture.","Ribs down, shoulders back.","Walk smoothly — no waddling."],
   faults:["Leaning to one side.","Shrugging the shoulders up."]},
-dead_hang:{n:"Dead Hang",m:"forearms",sub:["flexors"],sec:["back"],bias:"stretch",type:"isolation",eq:"bw",reps:[20,60],
+dead_hang:{n:"Dead Hang",m:"forearms",sub:["flexors"],sec:["back"],bias:"stretch",type:"isolation",eq:"bw",reps:[20,60],track:"hold",
   why:"Grip endurance and shoulder decompression with zero equipment. Reps = seconds.",
   cues:["Hang from a bar, arms straight.","Shoulders active, not fully slack.","Breathe and hold."],
   faults:["Death-gripping and swinging.","Fully shrugged passive hanging."]},
@@ -757,7 +757,7 @@ reverse_crunch:{n:"Reverse Crunch",m:"core",sub:["rectus"],sec:[],bias:"mid",typ
   why:"Emphasises the lower abdominal region by curling the pelvis rather than the ribs.",
   cues:["Lie down, knees bent.","Curl the pelvis up off the floor.","Lower slowly — no momentum."],
   faults:["Swinging the legs.","Pulling with the hip flexors only."]},
-hollow_hold:{n:"Hollow Body Hold",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[20,45],
+hollow_hold:{n:"Hollow Body Hold",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[20,45],track:"hold",
   why:"Total anterior-core bracing under tension. Reps = seconds.",
   cues:["Lower back pressed flat to the floor.","Arms and legs extended, shoulders off the ground.","Breathe shallow, stay rigid."],
   faults:["Lower back arching off the floor.","Holding the breath."]},
@@ -834,9 +834,8 @@ const FOCUS = {
 };
 function focusReps(id,focusKey){
   const e=EX[id], f=FOCUS[focusKey]||FOCUS.hypertrophy;
+  if(e.track) return e.reps.slice();          // seconds/minutes are never rep-shifted
   if(e.type!=="compound"||!f.shift) return e.reps.slice();
-  // time-based holds (planks, carries) are never rep-shifted
-  if(e.reps[0]>=20) return e.reps.slice();
   return [Math.max(3,e.reps[0]+f.shift), Math.max(5,e.reps[1]+f.shift)];
 }
 
@@ -947,7 +946,9 @@ Object.assign(PATTERNS,{
   "Steady cardio":["incline_walk","brisk_walk","run","cycle","elliptical","stairmaster","swim"],
   "Interval cardio":["hiit_bike","row_erg","jump_rope","sled_push"]
 });
-const isTimed=id=>EX[id]&&EX[id].track==="time";
+const isTimed=id=>EX[id]&&EX[id].track==="time";      // cardio: minutes + intensity
+const isHold =id=>EX[id]&&EX[id].track==="hold";      // isometric/carry: weight + seconds
+const isTimeBased=id=>isTimed(id)||isHold(id);
 
 /* ============================================================
    EXTRA DAY TEMPLATES — for adding a 4th (or 7th) day
@@ -972,4 +973,4 @@ const DAY_TEMPLATES={
 };
 
 /* bumped whenever index.html requires new symbols from this file */
-const DATA_VERSION = 15;
+const DATA_VERSION = 16;
