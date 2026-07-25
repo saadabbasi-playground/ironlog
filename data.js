@@ -884,3 +884,89 @@ const EVIDENCE = [
    d:"Level thresholds are community-derived bodyweight ratios, and e1RM uses the Epley formula, which drifts at high rep counts. Directional, not diagnostic.",
    s:"Epley (1985) formula; community strength standards"}
 ];
+
+/* ============================================================
+   CARDIO — time-tracked work (track:"time" → minutes, not reps)
+   Public-health guidance: 150 min moderate OR 75 min vigorous per
+   week, plus 2 strength sessions (WHO / ACSM). conf: strong.
+============================================================ */
+MUSCLES.cardio={n:"Cardio",notMuscle:true,subs:{steady:"Steady state",interval:"Intervals"}};
+LANDMARKS.cardio={mev:0,mav:0,mrv:0,conf:"est"};
+const CARDIO_GUIDE={modMin:150,vigMin:75,
+  note:"Public-health guidance is 150 minutes of moderate or 75 minutes of vigorous cardio weekly, alongside 2+ strength sessions. Health benefit is well established; done sensibly it won't cost you muscle."};
+const INTENSITIES=["easy","moderate","hard"];
+
+Object.assign(EX,{
+incline_walk:{n:"Incline Treadmill Walk",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"mc",reps:[15,45],track:"time",
+  why:"Low-impact steady cardio that barely interferes with lifting recovery — the default choice alongside a hard training block.",
+  cues:["Set a brisk pace at 8–12% incline.","Don't hold the handrails.","You should be able to talk, but not sing."],
+  faults:["Leaning on the rails (halves the work).","Going so hard it wrecks your leg sessions."]},
+brisk_walk:{n:"Brisk Walk (outdoor)",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"bw",reps:[20,60],track:"time",
+  why:"Zero equipment, zero recovery cost, and the easiest cardio to actually stick to.",
+  cues:["Purposeful pace — slightly breathless.","Arms swinging, tall posture.","Hills add intensity for free."],
+  faults:["Strolling and calling it cardio."]},
+run:{n:"Running",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"bw",reps:[15,45],track:"time",
+  why:"Efficient conditioning and strong cardiovascular benefit; higher impact and more leg fatigue than walking or cycling.",
+  cues:["Conversational pace for steady runs.","Land under the hips, quick cadence.","Build weekly distance gradually."],
+  faults:["Adding distance too fast (shin and knee pain).","Running hard the day before heavy legs."]},
+cycle:{n:"Stationary Bike",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"mc",reps:[15,45],track:"time",
+  why:"Low-impact and easy on the joints; the least disruptive machine for people training legs hard.",
+  cues:["Seat height so the knee is almost straight at the bottom.","Steady resistance, smooth cadence 80–100 rpm."],
+  faults:["Seat too low (knee strain).","Zero resistance spinning."]},
+row_erg:{n:"Rowing Machine",m:"cardio",sub:["interval"],sec:["back"],bias:"mid",type:"cardio",eq:"mc",reps:[10,30],track:"time",
+  why:"Full-body conditioning that also loads the upper back — high return per minute.",
+  cues:["Legs, then back, then arms. Reverse on the recovery.","Drive with the legs — it's not a rowing-arm exercise.","Keep the chain flat."],
+  faults:["Yanking with the arms first.","Rounding the lower back."]},
+stairmaster:{n:"Stair Climber",m:"cardio",sub:["steady"],sec:["glutes"],bias:"mid",type:"cardio",eq:"mc",reps:[10,30],track:"time",
+  why:"Hits the glutes and calves while raising heart rate — tougher than it looks.",
+  cues:["Stand tall, light touch on the rails.","Full steps, don't skip.","Steady pace you can hold."],
+  faults:["Hanging off the handles.","Tiny half-steps."]},
+elliptical:{n:"Elliptical",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"mc",reps:[15,45],track:"time",
+  why:"Low-impact whole-body option when knees or shins need a break from running.",
+  cues:["Push and pull the handles.","Keep resistance high enough to feel like work."],
+  faults:["Coasting on momentum."]},
+jump_rope:{n:"Jump Rope",m:"cardio",sub:["interval"],sec:["calves"],bias:"mid",type:"cardio",eq:"bw",reps:[5,20],track:"time",
+  why:"High intensity in very little time and space; also builds calf and ankle stiffness.",
+  cues:["Small jumps, wrists doing the turning.","Land softly on the balls of the feet.","Work in 30–60s rounds."],
+  faults:["Jumping too high.","Going to failure on the calves before a leg day."]},
+hiit_bike:{n:"Bike Intervals (HIIT)",m:"cardio",sub:["interval"],sec:[],bias:"mid",type:"cardio",eq:"mc",reps:[8,20],track:"time",
+  why:"Big conditioning stimulus in little time. Use sparingly — interval work is fatiguing and competes with leg training.",
+  cues:["Warm up 3–5 min.","20–40s hard, 60–90s easy. Repeat 6–10 rounds.","Cool down easy."],
+  faults:["Doing it the day before heavy squats.","No warm-up."]},
+sled_push:{n:"Sled Push",m:"cardio",sub:["interval"],sec:["quads","glutes"],bias:"mid",type:"cardio",eq:"mc",reps:[8,20],track:"time",
+  why:"Conditioning with almost no eccentric loading — brutal on the lungs, gentle on recovery.",
+  cues:["Low body angle, arms extended.","Drive with short powerful steps.","Rest fully between trips."],
+  faults:["Loading it so heavy it becomes a leg session."]},
+swim:{n:"Swimming",m:"cardio",sub:["steady"],sec:[],bias:"mid",type:"cardio",eq:"bw",reps:[15,45],track:"time",
+  why:"Zero-impact whole-body conditioning — ideal when joints are beaten up.",
+  cues:["Steady laps at a pace you can sustain.","Breathe on a rhythm.","Rest at the wall as needed."],
+  faults:["Sprinting the first lap and dying."]}
+});
+RANK.cardio=["incline_walk","brisk_walk","cycle","run","row_erg","stairmaster","elliptical","jump_rope","hiit_bike","sled_push","swim"];
+Object.assign(PATTERNS,{
+  "Steady cardio":["incline_walk","brisk_walk","run","cycle","elliptical","stairmaster","swim"],
+  "Interval cardio":["hiit_bike","row_erg","jump_rope","sled_push"]
+});
+const isTimed=id=>EX[id]&&EX[id].track==="time";
+
+/* ============================================================
+   EXTRA DAY TEMPLATES — for adding a 4th (or 7th) day
+============================================================ */
+const DAY_TEMPLATES={
+  abs_cardio:{n:"Abs & Cardio", mus:["core","cardio"], sets:{core:4,cardio:1},
+    d:"Core work plus steady cardio. Lightest possible recovery cost — the safest day to bolt onto a full week."},
+  cardio:{n:"Cardio", mus:["cardio"], sets:{cardio:2},
+    d:"Conditioning only. Good on rest days; won't interfere with lifting if kept mostly steady-state."},
+  arms:{n:"Arms", mus:["biceps","triceps","forearms"], sets:{biceps:4,triceps:4,forearms:3},
+    d:"Direct arm volume. Popular add-on when arms are lagging — small muscles recover fast."},
+  weak:{n:"Weak points", mus:null, sets:null,
+    d:"Extra volume for your priority muscles. Built from whatever you've marked as a priority."},
+  shoulders_arms:{n:"Delts & Arms", mus:["shoulders","biceps","triceps"], sets:{shoulders:5,biceps:3,triceps:3},
+    d:"Side delts plus arms — the classic 'aesthetics' accessory day."},
+  fullbody:{n:"Full Body", mus:["quads","chest","back","shoulders","core"], sets:{quads:3,chest:3,back:3,shoulders:3,core:3},
+    d:"A light extra full-body session. Adds frequency to everything — only if recovery allows."},
+  mobility:{n:"Core & Mobility", mus:["core"], sets:{core:5},
+    d:"Core and trunk stability, no systemic fatigue. Fits anywhere in the week."},
+  empty:{n:"Custom", mus:[], sets:{},
+    d:"Start empty and add exactly the exercises you want."}
+};
