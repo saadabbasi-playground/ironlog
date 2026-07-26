@@ -98,6 +98,9 @@ input.f:focus{outline:none;border-color:var(--blue)}
 .rec.up{background:var(--green-soft);color:var(--green)}
 .rec.hold{background:var(--blue-soft);color:var(--blue)}
 .rec.new{background:var(--raised);color:var(--muted)}
+.warmup{background:var(--gold-soft);border:1px solid rgba(255,197,61,.35);border-radius:10px;padding:9px 11px;margin:0 0 10px;cursor:pointer}
+.warmup.done{opacity:.45}
+.warmup.done .num{text-decoration:line-through}
 .exmenu{width:34px;height:34px;border-radius:10px;background:var(--raised);border:1px solid var(--line);color:var(--muted);font-size:17px;cursor:pointer;flex-shrink:0;line-height:1}
 #resttimer{position:fixed;left:12px;right:12px;bottom:calc(var(--safe-b) + 12px);max-width:496px;margin:0 auto;
   background:var(--blue);color:#fff;border-radius:18px;padding:13px 18px;font-weight:800;display:none;z-index:60;
@@ -234,6 +237,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
     <div id="w-meso" style="margin-bottom:6px"></div>
     <div id="barviz"><div class="plates-l" id="plates-l"></div><div class="bar"></div><div class="plates-r" id="plates-r"></div></div>
     <p class="tiny muted" style="text-align:center;margin:-2px 0 10px" id="w-progress"></p>
+    <div id="w-general"></div>
     <div id="w-body"></div>
     <button class="btn ghost" onclick="openAddExercise()">＋ Add exercise</button>
     <div style="height:8px"></div>
@@ -303,7 +307,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=17"></script>
+<script src="data.js?v=18"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -390,10 +394,93 @@ function generatePlan(details,rotOffset=0,startDate=null){
         if(p2&&s2>=2){exercises.push(mkEx(p2,s2,isPrio,false,details.focus)); seen.add(p2);}
       } else { exercises.push(mkEx(p1,Math.min(perDay,8),isPrio,o===0,details.focus)); seen.add(p1); }
     });
-    return {name:d.name, exercises};
+    return fitToTime({name:d.name, exercises}, (details.sessionTime?SESSION_TIME[details.sessionTime]?.min:null)||999);
   });
   return {key, label:struct.label, note:SPLIT_NOTES[key]||null, rotOffset,
     startDate:startDate||new Date().toISOString(), days};
+}
+/* ---------- warm-ups: derived from the prescribed working weight ---------- */
+function roundLoad(w){
+  const step=unit()==="lb"?5:2.5;
+  return Math.max(0,Math.round(w/step)*step);
+}
+function warmupFor(exId,workW,scheme){
+  if(!workW||isTimeBased(exId)||EX[exId].type!=="compound")return null;
+  const minLoad=unit()==="lb"?90:WARMUP.minLoadKg;
+  if(workW<minLoad)return null;
+  const bar=unit()==="lb"?45:WARMUP.barKg;
+  const isBar=EX[exId].eq==="bb";
+  return (WARMUP[scheme]||WARMUP.full).map(([pct,reps])=>{
+    let w=roundLoad(workW*pct);
+    if(isBar&&w<bar)w=bar;
+    return {w,reps,pct:Math.round(pct*100)};
+  }).filter((v,i,a)=>i===0||v.w>a[i-1].w);   // drop duplicate rungs
+}
+/* first heavy compound for a muscle gets the full ramp, later ones a short one */
+function warmupSchemeFor(ei){
+  const id=live.ex[ei].id, m=EX[id].m;
+  for(let i=0;i<ei;i++){
+    const p=live.ex[i].id;
+    if(EX[p].m===m&&EX[p].type==="compound"&&!isTimeBased(p))return "short";
+  }
+  return "full";
+}
+function toggleWarmup(ei){
+  live.ex[ei].wuDone=!live.ex[ei].wuDone;saveDraft();renderWorkout();
+}
+
+/* ---------- session time ---------- */
+const sessionBudget=()=>(SESSION_TIME[me?.details?.sessionTime]||SESSION_TIME.s75).min;
+function exMinutes(e){
+  const T=TIME_MODEL, lo=e.reps?e.reps[0]:e.lo, hi=e.reps?e.reps[1]:e.hi, mid=(lo+hi)/2;
+  if(isTimed(e.id))  return e.sets*mid;                       // reps are minutes
+  if(isHold(e.id))   return e.sets*(mid+e.rest)/60;           // reps are seconds
+  return e.sets*(T.workSecPerSet+e.rest)/60;
+}
+function dayMinutes(day){
+  const T=TIME_MODEL;
+  return Math.round(day.exercises.reduce((a,e)=>a+exMinutes(e),0)
+    + day.exercises.length*T.transitionSecPerEx/60 + T.generalWarmupMin);
+}
+/* Trim a day to fit the user's window: cut sets from the least important
+   work first, then drop trailing accessories. Anchors and priority work
+   are protected until nothing else is left. */
+function fitToTime(day,budget){
+  if(budget>=999)return day;
+  // very short windows genuinely only fit a couple of lifts once rests are honest
+  const minEx=budget<50?2:3;
+  let guard=0;
+  while(dayMinutes(day)>budget && guard++<80){
+    const trimmable=day.exercises.map((e,i)=>({e,i})).filter(({e})=>e.sets>2 && !e.anchor);
+    if(trimmable.length){ trimmable[trimmable.length-1].e.sets--; continue; }
+    const droppable=day.exercises.map((e,i)=>({e,i})).filter(({e})=>!e.anchor&&!e.prio);
+    if(droppable.length && day.exercises.length>minEx){
+      day.exercises.splice(droppable[droppable.length-1].i,1); continue;
+    }
+    const anchorTrim=day.exercises.filter(e=>e.sets>3);
+    if(anchorTrim.length){ anchorTrim[anchorTrim.length-1].sets--; continue; }
+    const anyDrop=day.exercises.map((e,i)=>({e,i})).filter(({e})=>!e.anchor);
+    if(anyDrop.length && day.exercises.length>minEx){
+      day.exercises.splice(anyDrop[anyDrop.length-1].i,1); continue;
+    }
+    const last=day.exercises.filter(e=>e.sets>2);
+    if(last.length){ last[last.length-1].sets--; continue; }
+    break;   // honestly cannot fit — the UI warns instead of pretending
+  }
+  return day;
+}
+/* is the program actually achievable in the chosen window? */
+function timeFit(){
+  const bud=sessionBudget();
+  if(bud>=999)return {ok:true};
+  const over=me.plan.days.filter(d=>dayMinutes(d)>bud+5);
+  if(!over.length)return {ok:true};
+  const F=FOCUS[me.details.focus]||FOCUS.hypertrophy;
+  return {ok:false,days:over.map(d=>d.name),
+    msg:`${over.map(d=>d.name).join(" and ")} still need${over.length===1?"s":""} about ${Math.max(...over.map(dayMinutes))} min. `+
+      (me.details.focus==="strength"
+        ? `A Strength focus prescribes ${F.restC}s rests between compounds — that's simply slow. Either give these sessions more time, or switch to Powerbuilding/Hypertrophy for shorter rests.`
+        : `Give these sessions a longer window, or drop an accessory from the Program tab.`)};
 }
 function mkEx(id,sets,prio,first,focusKey){
   const e=EX[id], f=FOCUS[focusKey]||FOCUS.hypertrophy;
@@ -428,7 +515,7 @@ function buildCustomDay(key,name){
       }
     }
   });
-  return {name:name||t.n,exercises,custom:true,template:key};
+  return fitToTime({name:name||t.n,exercises,custom:true,template:key},sessionBudget());
 }
 function addCustomDay(key){
   const d=buildCustomDay(key);
@@ -587,7 +674,7 @@ function migrate(u){
   const d=u.details||{};
   if(!d.eqs) d.eqs = d.equipment==="g"?["bb","db","cb","mc","bw"]:d.equipment==="d"?["db","bw"]:["bw"];
   if(!d.goal||!(d.goal in GOALS)) d.goal = d.goal==="fatloss"?"cut":"bulk";
-  d.exp=d.exp||"intermediate"; d.days=d.days||3; d.splitPref=d.splitPref||"auto"; d.focus=d.focus&&FOCUS[d.focus]?d.focus:"hypertrophy";
+  d.exp=d.exp||"intermediate"; d.days=d.days||3; d.splitPref=d.splitPref||"auto"; d.focus=d.focus&&FOCUS[d.focus]?d.focus:"hypertrophy"; d.sessionTime=d.sessionTime&&SESSION_TIME[d.sessionTime]?d.sessionTime:"s75";
   d.priority=(d.priority||[]).map(p=>p.toLowerCase()).filter(p=>MUSCLES[p]);
   u.details=d; u.food=u.food||{}; u.history=u.history||[]; u.measures=u.measures||[];
   if(!u.plan||!u.plan.key) u.plan=generatePlan(d);
@@ -656,10 +743,12 @@ const OB_STEPS=[
    <label class="f">Training focus</label>${chipG("focus",Object.entries(FOCUS).map(([k,v])=>[k,v.n]),d.focus||"hypertrophy")}
    <p class="tiny muted" style="margin-top:10px">Focus sets your rep ranges, rest times and RIR schedule. Nutrition goal also scales weekly volume — a deficit trims sets while keeping loads heavy, which is the best-supported way to hold onto muscle while losing fat.</p>`,
   read:d=>{d.activity=chipV("act");d.goal=chipV("goal");d.focus=chipV("focus");return true;}},
- {t:"Training",s:"Days you can realistically train, and how long you've lifted.",html:d=>`
+ {t:"Training",s:"Days, session length, and how long you've lifted.",html:d=>`
    <label class="f">Days per week</label>${chipG("days",[["2","2"],["3","3"],["4","4"],["5","5"],["6","6"]],String(d.days||3))}
-   <label class="f">Training age</label>${chipG("exp",[["beginner","<1 yr"],["intermediate","1–3 yrs"],["advanced","3+ yrs"]],d.exp||"intermediate")}`,
-  read:d=>{d.days=+chipV("days");d.exp=chipV("exp");return true;}},
+   <label class="f">Time per session</label>${chipG("stime",Object.entries(SESSION_TIME).map(([k,v])=>[k,v.n]),d.sessionTime||"s55")}
+   <label class="f">Training age</label>${chipG("exp",[["beginner","<1 yr"],["intermediate","1–3 yrs"],["advanced","3+ yrs"]],d.exp||"intermediate")}
+   <p class="tiny muted" style="margin-top:10px">Sessions are built to fit the window you pick — including rest times, which get long on a Strength focus. An honest 45 minutes beats a 90-minute plan you skip.</p>`,
+  read:d=>{d.days=+chipV("days");d.sessionTime=chipV("stime");d.exp=chipV("exp");return true;}},
  {t:"Equipment",s:"Select everything you have access to.",html:d=>
    chipG("eqs",[["bb","Barbell"],["db","Dumbbells"],["cb","Cables"],["mc","Machines"],["bw","Bodyweight"]],d.eqs||["bb","db","cb","mc","bw"],5),
   read:d=>{d.eqs=chipVs("eqs"); if(!d.eqs.includes("bw"))d.eqs.push("bw"); if(!d.eqs.length){toast("Pick at least one");return false;} return true;}},
@@ -695,7 +784,7 @@ function obNext(){
   if(ob.step<OB_STEPS.length-1){ob.step++;renderOb();return;}
   const d=ob.data;
   const details={sex:d.sex,age:d.age,heightCm:d.heightCm,weightKg:d.weightKg,bf:d.bf,activity:d.activity,
-    goal:d.goal,focus:d.focus||"hypertrophy",days:d.days,exp:d.exp,eqs:d.eqs,priority:d.priority,splitPref:d.splitPref,unit:d.unit};
+    goal:d.goal,focus:d.focus||"hypertrophy",days:d.days,sessionTime:d.sessionTime||"s55",exp:d.exp,eqs:d.eqs,priority:d.priority,splitPref:d.splitPref,unit:d.unit};
   if(ob.editing){
     me.name=d.name;me.pin=d.pin||null;me.details=details;
     me.plan=rebuildPlan(details);save();toast("Program rebuilt ✓");tab("s-plan");
@@ -804,7 +893,8 @@ function renderToday(){
   html+=`<div class="session-card">
     <div class="spread"><span class="pill">${idx===sug?"NEXT IN ROTATION":"YOUR PICK"}</span>${dl?'<span class="pill gold">DELOAD ×0.5 SETS</span>':""}</div>
     <h2 class="display" style="font-size:23px;margin:8px 0 2px">${esc(day.name)}</h2>
-    <p class="tiny muted" style="margin-bottom:10px">${day.exercises.length} exercises · RIR ${targetRIR()} · ~${Math.round(day.exercises.reduce((a,e)=>a+e.sets,0)*(dl?0.5:1)*3.2)} min</p>
+    ${(()=>{const est=dayMinutes(day),bud=sessionBudget(),over=bud<999&&est>bud+5;
+      return `<p class="tiny ${over?"gold":"muted"}" style="margin-bottom:10px">${day.exercises.length} exercises · RIR ${targetRIR()} · ~${dl?Math.round(est*0.6):est} min${bud<999?` (your window: ${bud} min)`:""}${over?" — running long, drop the last accessory if you're tight":""}</p>`;})()}
     ${day.exercises.map(e=>`<div class="ex-line"><span>${esc(EX[e.id].n)}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
       <span class="muted num">${dl?Math.max(1,Math.round(e.sets*RULES.deloadSetFactor)):e.sets}×${e.reps[0]}–${e.reps[1]}</span></div>`).join("")}
     <div style="height:14px"></div><button class="btn" onclick="startWorkout(${idx})">Start workout</button></div>
@@ -848,6 +938,8 @@ function renderPlan(){
   let html=`<div class="weekpill">${Array.from({length:RULES.mesoWeeks},(_,i)=>
     `<div class="wp ${i===wk?"on":""} ${i===RULES.mesoWeeks-1?"dl":""}">${i===RULES.mesoWeeks-1?"DELOAD":"WK "+(i+1)}</div>`).join("")}</div>`;
   if(me.plan.note) html+=`<div class="coach warn"><b>Split note:</b> ${esc(me.plan.note)}</div>`;
+  const tf=timeFit();
+  if(!tf.ok) html+=`<div class="coach warn"><b>Tight on time:</b> ${esc(tf.msg)}</div>`;
   const F=FOCUS[me.details.focus]||FOCUS.hypertrophy, G=GOAL_TRAINING[me.details.goal]||GOAL_TRAINING.recomp;
   html+=`<div class="coach"><b>This week:</b> RIR ${targetRIR()}${isDeload()?" · sets halved automatically":""} · rotate accessories every ${RULES.rotateAfterWeeks} wks (anchors stay for progress tracking).</div>
     <div class="coach good"><b>${esc(F.n)}:</b> ${esc(F.note)}</div>
@@ -857,6 +949,7 @@ function renderPlan(){
       <span class="row"><button class="exmenu" style="width:30px;height:30px;font-size:13px" onclick="renameDay(${i})">✎</button>
       ${d.custom?`<button class="exmenu" style="width:30px;height:30px;font-size:13px;color:var(--red)" onclick="deleteDay(${i})">✕</button>`:""}
       <button class="btn small ghost" onclick="startWorkout(${i})">Start</button></span></div><div style="height:8px"></div>
+    <div class="tiny muted" style="margin:-4px 0 6px">~${dayMinutes(d)} min including warm-up</div>
     ${d.exercises.map((e,xi)=>`<div class="ex-line"><span class="howto-link" onclick="showHowTo('${e.id}')">${esc(EX[e.id].n)}${e.anchor?' <span class="pill dim" style="font-size:10px">ANCHOR</span>':""}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
       <span class="row"><span class="muted num">${e.sets}×${e.reps[0]}–${e.reps[1]}</span><button class="exmenu" style="width:30px;height:30px;font-size:15px" onclick="planOptions(${i},${xi})">⇄</button></span></div>`).join("")}
   </div>`).join("");
@@ -981,6 +1074,9 @@ function openWorkout(){
   $("w-meso").innerHTML=(live.deload
     ?`<span class="pill gold" onclick="rirHelp()" style="cursor:pointer">DELOAD — HALF SETS · RIR 4+ ⓘ</span>`
     :`<span class="pill" onclick="rirHelp()" style="cursor:pointer">WEEK ${mesoWeek()+1} · TARGET RIR ${live.rir} ⓘ</span>`);
+  $("w-general").innerHTML=`<div class="warmup" style="margin-bottom:12px">
+    <b class="tiny" style="color:var(--gold)">🔥 BEFORE YOU START</b>
+    <div class="tiny" style="margin-top:4px">${esc(WARMUP.general)}</div></div>`;
   renderWorkout();go("s-workout");
   clearInterval(clockIv);
   clockIv=setInterval(()=>{if(!live){clearInterval(clockIv);return;}
@@ -1006,6 +1102,13 @@ function renderWorkout(){
         :hold?`${e.sets.length} hold${e.sets.length===1?"":"s"} · ${e.lo}–${e.hi} sec target · rest ${e.rest}s`
         :`${e.sets.length} sets × ${e.lo}–${e.hi} · rest ${e.rest}s · RIR ${live.deload?4:live.rir}`}</div>
       <div class="rec ${rec.kind}">${rec.kind==="up"?"📈 ":rec.kind==="hold"?"🎯 ":"✨ "}${esc(rec.msg)}</div>
+      ${(()=>{const wu=warmupFor(e.id,rec.w||(last?last.topW:0),warmupSchemeFor(ei));
+        if(!wu||!wu.length)return "";
+        return `<div class="warmup ${e.wuDone?"done":""}" onclick="toggleWarmup(${ei})">
+          <div class="spread"><b class="tiny" style="color:var(--gold)">🔥 WARM-UP RAMP${e.wuDone?" — DONE":""}</b>
+            <span class="tiny muted">${e.wuDone?"tap to undo":"tap when done"}</span></div>
+          <div class="tiny num" style="margin-top:4px">${wu.map(x=>`${fmt1(x.w)} ${unit()}${isPerHand(e.id)?"/hand":""} × ${x.reps}`).join("  →  ")}</div>
+          <div class="tiny muted" style="margin-top:3px">Not counted as working sets — this is acclimation, not training.</div></div>`;})()}
       ${timed?`
       <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1.6fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">MINUTES</span><span style="text-align:center">INTENSITY</span><span style="text-align:center">✓</span></div>
       ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:26px 1fr 1.6fr 46px">
@@ -1524,6 +1627,7 @@ function renderProfile(){
   $("pr-details").innerHTML=`
     <div class="pr-row"><span class="muted">Goal</span><b>${GOALS[d.goal]}</b></div>
     <div class="pr-row"><span class="muted">Training focus</span><b>${(FOCUS[d.focus]||FOCUS.hypertrophy).n}</b></div>
+    <div class="pr-row"><span class="muted">Session length</span><b>${(SESSION_TIME[d.sessionTime]||SESSION_TIME.s75).n}</b></div>
     <div class="pr-row"><span class="muted">Days / week</span><b class="num">${d.days} (${me.plan.label})</b></div>
     <div class="pr-row"><span class="muted">Equipment</span><b>${d.eqs.map(e=>EQ_LABEL[e]).join(", ")}</b></div>
     <div class="pr-row"><span class="muted">Body</span><b class="num">${d.weightKg||"—"} kg · ${d.heightCm||"—"} cm${d.bf?` · ${d.bf}% bf`:""}</b></div>
@@ -1532,15 +1636,15 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 17 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 18 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
    BOOT
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
-  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=17;
+  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
+const REQUIRED_DATA_VERSION=18;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:50px 22px;text-align:center">
