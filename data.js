@@ -977,4 +977,38 @@ const DAY_TEMPLATES={
 };
 
 /* bumped whenever index.html requires new symbols from this file */
-const DATA_VERSION = 17;
+
+
+/* ============================================================
+   WARM-UPS & SESSION TIME
+============================================================ */
+/* Ramp sets are derived from the working weight: acclimates the
+   nervous system and joints without adding fatigue. Warm-up sets are
+   NOT counted as working volume. conf: moderate for performance,
+   weaker for injury prevention. */
+const WARMUP={
+  full:[[0.40,5],[0.60,3],[0.80,1]],   // first heavy compound for a muscle
+  short:[[0.55,3],[0.80,1]],           // later compounds for the same muscle
+  minLoadKg:40,                        // below this a ramp isn't worth the time
+  barKg:20,
+  general:"5 min easy cardio to raise core temperature, then 5–10 controlled reps of the pattern you're about to train.",
+  note:"Warm-up sets are load acclimation, not training. They don't count toward your working sets."
+};
+/* Session-length options → usable minutes for working sets */
+const SESSION_TIME={
+  s40:{n:"Under 45 min", min:40},
+  s55:{n:"45–60 min",    min:55},
+  s75:{n:"60–90 min",    min:75},
+  s999:{n:"90+ / no limit", min:999}
+};
+const TIME_MODEL={workSecPerSet:35, transitionSecPerEx:60, generalWarmupMin:6};
+
+EVIDENCE.push(
+ {t:"Warm-up improves performance",c:"moderate",
+  d:"Raising muscle temperature and rehearsing the movement with progressively heavier sets improves force output on the first working set. IronLog derives ramp sets from the weight it prescribes. Evidence for warm-ups preventing injury specifically is weaker than for the performance benefit.",
+  s:"Warm-up and post-activation potentiation literature; RAMP framework (Jeffreys)"},
+ {t:"Cool-downs do little — so IronLog doesn't prescribe one",c:"strong",
+  d:"Active cool-downs are largely ineffective for same-day and next-day performance, do not appear to prevent injuries, and don't meaningfully speed recovery. Post-workout static stretching doesn't reliably reduce soreness. Train mobility deliberately if flexibility is a goal; don't do it expecting recovery.",
+  s:"Van Hooren & Peake (2018), Sports Medicine — narrative review"}
+);
+const DATA_VERSION = 18;
