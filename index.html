@@ -303,7 +303,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=16"></script>
+<script src="data.js?v=17"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -484,6 +484,7 @@ function exHistory(exId){
 }
 function recommendNext(exId,lo,hi){
   const hist=exHistory(exId), tr=targetRIR();
+  const PH=isPerHand(exId)?" per hand":"";
   if(isHold(exId)){
     const withSec=hist.filter(h=>h.sets.some(s=>s.sec));
     if(!withSec.length)return {kind:"new",w:null,
@@ -515,10 +516,10 @@ function recommendNext(exId,lo,hi){
   const inRange=topSets.every(s=>s.r>=lo);
   if(allTop || (inRange && avgRIR!==null && avgRIR>=tr+2))
     return {kind:"up",w:top+jump(exId),
-      msg:allTop?`Level up: ${hi}+ reps on every set at ${fmt1(top)} ${unit()}. Load ${fmt1(top+jump(exId))} today.`
-        :`You had ${Math.round(avgRIR)} reps in the tank at ${fmt1(top)} ${unit()}. Load ${fmt1(top+jump(exId))} today.`};
-  if(!inRange) return {kind:"hold",w:top,msg:`Stay at ${fmt1(top)} ${unit()} — get every set to ${lo}+ reps (RIR ${tr}) before adding load.`};
-  return {kind:"hold",w:top,msg:`Keep ${fmt1(top)} ${unit()}, add a rep: last time ${topSets.map(s=>s.r).join(", ")} — chase ${hi} at RIR ${tr}.`};
+      msg:allTop?`Level up: ${hi}+ reps on every set at ${fmt1(top)} ${unit()}${PH}. Load ${fmt1(top+jump(exId))} ${unit()}${PH} today.`
+        :`You had ${Math.round(avgRIR)} reps in the tank at ${fmt1(top)} ${unit()}${PH}. Load ${fmt1(top+jump(exId))} ${unit()}${PH} today.`};
+  if(!inRange) return {kind:"hold",w:top,msg:`Stay at ${fmt1(top)} ${unit()}${PH} — get every set to ${lo}+ reps (RIR ${tr}) before adding load.`};
+  return {kind:"hold",w:top,msg:`Keep ${fmt1(top)} ${unit()}${PH}, add a rep: last time ${topSets.map(s=>s.r).join(", ")} — chase ${hi} at RIR ${tr}.`};
 }
 function stalledExercises(){
   const out=[];
@@ -1014,7 +1015,7 @@ function renderWorkout(){
           ${INTENSITIES.map(x=>`<option value="${x}" ${(s.int||"moderate")===x?"selected":""}>${x}</option>`).join("")}</select>
         <button class="set-done ${s.done?"on":""}" onclick="toggleSet(${ei},${si},this)">${s.done?"✓":""}</button></div>`).join("")}
       <button class="btn small ghost" onclick="addSet(${ei})">＋ Add bout</button>`:hold?`
-      <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">+${unit().toUpperCase()}</span><span style="text-align:center">SECONDS</span><span style="text-align:center">✓</span></div>
+      <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">+${unit().toUpperCase()}${isPerHand(e.id)?"/HAND":""}</span><span style="text-align:center">SECONDS</span><span style="text-align:center">✓</span></div>
       ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:26px 1fr 1fr 46px">
         <span class="set-num num">${si+1}</span>
         <input inputmode="decimal" class="num" placeholder="${last&&last.sets[si]&&+last.sets[si].w?last.sets[si].w:"BW"}" value="${s.w||""}" onchange="setVal(${ei},${si},'w',this.value)">
@@ -1022,7 +1023,8 @@ function renderWorkout(){
         <button class="set-done ${s.done?"on":""}" onclick="toggleSet(${ei},${si},this)">${s.done?"✓":""}</button></div>`).join("")}
       <p class="tiny muted" style="margin-top:2px">Leave weight blank for bodyweight. Add load once you're past the top of the range.</p>
       <button class="btn small ghost" onclick="addSet(${ei})">＋ Add hold</button>`:`
-      <div class="set-row tiny muted" style="margin-bottom:4px"><span></span><span style="text-align:center">${unit().toUpperCase()}</span><span style="text-align:center">REPS</span><span style="text-align:center">RIR</span><span style="text-align:center">✓</span></div>
+      ${isPerHand(e.id)?`<p class="tiny" style="color:var(--gold);margin:0 0 6px">⚖️ Two dumbbells — log <b>one</b> dumbbell's weight (what's on the handle).</p>`:""}
+      <div class="set-row tiny muted" style="margin-bottom:4px"><span></span><span style="text-align:center">${unit().toUpperCase()}${isPerHand(e.id)?"/HAND":""}</span><span style="text-align:center">REPS</span><span style="text-align:center">RIR</span><span style="text-align:center">✓</span></div>
       ${e.sets.map((s,si)=>{
         const pw=recW!==""?recW:(last&&last.sets[si]?last.sets[si].w:"–");
         const pr=last&&last.sets[si]?last.sets[si].r:e.lo;
@@ -1178,7 +1180,8 @@ function finishWorkout(){
     prevMax[e.id]=h.length?Math.max(...h.map(x=>x.topW)):0;
     prevBest[e.id]=h.length?h[h.length-1].best:0;});
   const sameDayPrev=[...me.history].reverse().find(h=>h.dayIdx===live.dayIdx);
-  const volume=exercises.reduce((a,e)=>a+(isTimeBased(e.id)?0:e.sets.reduce((b,s)=>b+(+s.w||0)*(+s.r||0),0)),0);
+  const volume=exercises.reduce((a,e)=>a+(isTimeBased(e.id)?0
+    :implCount(e.id)*e.sets.reduce((b,s)=>b+(+s.w||0)*(+s.r||0),0)),0);
   const dur=Math.round((Date.now()-live.start)/60000);
   const entry={date:new Date().toISOString(),dayIdx:live.dayIdx,name:live.name,exercises,volume,dur,deload:live.deload};
   me.history.push(entry);save();
@@ -1348,7 +1351,7 @@ function openHist(i){
         ?e.sets.map(s=>`${s.min} min (${s.int||"moderate"})`).join("  ·  ")
         :isHold(e.id)
         ?e.sets.map(s=>`${+s.w?`${s.w} ${unit()} × `:""}${s.sec}s`).join("  ·  ")
-        :e.sets.map(s=>`${s.w} ${unit()} × ${s.r}${s.rir!=null?` @${s.rir}RIR`:""}`).join("  ·  ")}</div></div>`).join("")}
+        :e.sets.map(s=>`${s.w} ${unit()}${isPerHand(e.id)?"/hand":""} × ${s.r}${s.rir!=null?` @${s.rir}RIR`:""}`).join("  ·  ")}</div></div>`).join("")}
     <button class="btn ghost" onclick="repeatHist(${i})">↻ Repeat this workout</button>
     <div style="height:8px"></div>
     <button class="btn danger" onclick="deleteHist(${i})">Delete this workout</button>`;
@@ -1487,6 +1490,7 @@ function showHowTo(id){
     <h2 class="display" style="font-size:22px;margin:10px 0 6px">${esc(e.n)}</h2>
     ${L?`<div class="rec hold" style="margin:0 0 10px">🏅 Your level here: <b>${L.name}</b> (e1RM ${L.e1} ${unit()} = ${L.ratio}×BW)${L.next?` — ${L.next} at ~${L.nextAt} ${unit()}`:""}</div>`:""}
     <p class="tiny muted" style="margin-bottom:12px">${esc(e.why)} Targets: ${e.sub.map(s=>MUSCLES[e.m].subs[s]).join(", ")}.</p>
+    ${isPerHand(id)?`<div class="rec hold" style="margin:0 0 12px">⚖️ Uses two dumbbells. Log <b>one</b> dumbbell's weight — IronLog counts both when totalling volume.</div>`:""}
     ${e.cues.map((s,i)=>`<div class="step"><div class="n">${i+1}</div><div>${esc(s)}</div></div>`).join("")}
     <div class="tiny muted" style="font-weight:700;margin:12px 0 4px">COMMON FAULTS</div>
     ${e.faults.map(f=>`<div class="tiny" style="margin-bottom:5px">✕ ${esc(f)}</div>`).join("")}
@@ -1528,15 +1532,15 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 16 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 17 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
    BOOT
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
-  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=16;
+  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
+const REQUIRED_DATA_VERSION=17;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:50px 22px;text-align:center">
