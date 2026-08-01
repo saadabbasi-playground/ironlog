@@ -307,7 +307,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=18"></script>
+<script src="data.js?v=19"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -1636,7 +1636,7 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 18 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 19 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
@@ -1644,7 +1644,7 @@ function renderProfile(){
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
   "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=18;
+const REQUIRED_DATA_VERSION=19;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:50px 22px;text-align:center">
