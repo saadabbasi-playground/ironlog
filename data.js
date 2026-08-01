@@ -1011,4 +1011,27 @@ EVIDENCE.push(
   d:"Active cool-downs are largely ineffective for same-day and next-day performance, do not appear to prevent injuries, and don't meaningfully speed recovery. Post-workout static stretching doesn't reliably reduce soreness. Train mobility deliberately if flexibility is a goal; don't do it expecting recovery.",
   s:"Van Hooren & Peake (2018), Sports Medicine — narrative review"}
 );
-const DATA_VERSION = 18;
+
+/* ============================================================
+   EXPANSION 3 — unilateral arm work
+   Single-arm variants let you pin the elbow, squeeze harder at
+   lockout, and stop the dominant side carrying the set.
+============================================================ */
+Object.assign(EX,{
+single_pushdown:{n:"Single-Arm Cable Pushdown",m:"triceps",sub:["lateral","medial"],sec:[],bias:"short",type:"isolation",eq:"cb",reps:[10,15],impl:1,
+  why:"The lateral-head 'horseshoe' builder. One arm at a time keeps the elbow pinned and lets you squeeze harder at lockout than a rope allows — and the weak side can't hide behind the strong one.",
+  cues:["Single handle, elbow glued to your side.","Underhand or neutral grip, slight forward lean.","Push to full lockout and squeeze 1s.","Let it rise slowly — the elbow does not move."],
+  faults:["Elbow drifting forward or away from the ribs.","Leaning over the stack to press with bodyweight.","Rotating the torso to finish reps."]},
+single_ohext:{n:"Single-Arm Overhead Extension",m:"triceps",sub:["long"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[10,15],impl:1,
+  why:"Long-head stretch work one side at a time — bigger range than the two-handed version and it exposes side-to-side differences.",
+  cues:["Arm overhead, elbow beside your ear.","Lower behind the head to a deep stretch.","Elbow points forward, not out.","Extend to full lockout."],
+  faults:["Elbow flaring wide.","Leaning the torso to cheat the weight up.","Cutting the stretch short."]},
+single_db_ohext:{n:"Single-Arm DB Overhead Extension",m:"triceps",sub:["long"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],impl:1,
+  why:"Dumbbell version of the unilateral long-head stretch — no cable needed.",
+  cues:["One dumbbell overhead, free hand can brace the working elbow.","Lower behind the head under control.","Keep the upper arm vertical.","Lock out without flaring."],
+  faults:["Elbow drifting out.","Using the free hand to lift the weight."]}
+});
+RANK.triceps=["ohext","cable_ohext","single_ohext","cgbench","ez_skull","skull","jm_press","single_db_ohext","db_cgpress","pushdown","single_pushdown","bar_pushdown","dip","machine_dip","bench_dip","diamond_pushup","kickback"];
+PATTERNS["Overhead triceps"]=["ohext","cable_ohext","single_ohext","single_db_ohext"];
+PATTERNS["Pushdown"]=["pushdown","bar_pushdown","single_pushdown","kickback"];
+const DATA_VERSION = 19;
