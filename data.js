@@ -965,7 +965,7 @@ const DAY_TEMPLATES={
   arms:{n:"Arms", mus:["biceps","triceps","forearms"], sets:{biceps:4,triceps:4,forearms:3},
     d:"Direct arm volume. Popular add-on when arms are lagging — small muscles recover fast."},
   weak:{n:"Weak points", mus:null, sets:null,
-    d:"Extra volume for your priority muscles. Built from whatever you've marked as a priority."},
+    d:"Extra volume for your priority muscles, sized to the sets you have left before your recoverable ceiling. Raises their weekly frequency, which research favours over cramming volume into one session."},
   shoulders_arms:{n:"Delts & Arms", mus:["shoulders","biceps","triceps"], sets:{shoulders:5,biceps:3,triceps:3},
     d:"Side delts plus arms — the classic 'aesthetics' accessory day."},
   fullbody:{n:"Full Body", mus:["quads","chest","back","shoulders","core"], sets:{quads:3,chest:3,back:3,shoulders:3,core:3},
@@ -991,7 +991,7 @@ const WARMUP={
   short:[[0.55,3],[0.80,1]],           // later compounds for the same muscle
   minLoadKg:40,                        // below this a ramp isn't worth the time
   barKg:20,
-  general:"5 min easy cardio to raise core temperature, then 5–10 controlled reps of the pattern you're about to train.",
+  general:"5 min easy cardio to raise core temperature.",
   note:"Warm-up sets are load acclimation, not training. They don't count toward your working sets."
 };
 /* Session-length options → usable minutes for working sets */
@@ -1034,4 +1034,37 @@ single_db_ohext:{n:"Single-Arm DB Overhead Extension",m:"triceps",sub:["long"],s
 RANK.triceps=["ohext","cable_ohext","single_ohext","cgbench","ez_skull","skull","jm_press","single_db_ohext","db_cgpress","pushdown","single_pushdown","bar_pushdown","dip","machine_dip","bench_dip","diamond_pushup","kickback"];
 PATTERNS["Overhead triceps"]=["ohext","cable_ohext","single_ohext","single_db_ohext"];
 PATTERNS["Pushdown"]=["pushdown","bar_pushdown","single_pushdown","kickback"];
-const DATA_VERSION = 19;
+
+/* ============================================================
+   MOVEMENT PREP — day-specific mobility & activation
+   Dynamic work before training (not static stretching, which can
+   briefly reduce force output if held long before heavy sets).
+   conf: moderate for performance; weak for injury prevention.
+============================================================ */
+const PREP={
+  quads:[["Bodyweight squats","10 slow reps, sink as deep as control allows"],
+         ["Ankle rock-throughs","10 per side — drive the knee over the toes"],
+         ["Leg swings, front to back","10 per side"]],
+  hamstrings:[["Hip hinge / good-morning pattern","10 unloaded reps"],
+         ["Leg swings, front to back","10 per side"]],
+  glutes:[["Glute bridges","15 reps, 1s squeeze at the top"],
+         ["Lateral band walks or side steps","10 per side"]],
+  calves:[["Slow calf raises","15 reps through a full range"]],
+  chest:[["Band pull-aparts","15 reps"],
+         ["Push-ups","8–10 controlled reps"],
+         ["Arm circles / shoulder rolls","10 each direction"]],
+  shoulders:[["Band pull-aparts","15 reps"],
+         ["Shoulder dislocates with a band or stick","10 slow reps"],
+         ["Empty-bar or light presses","10 reps"]],
+  back:[["Dead hang","20–30 seconds"],
+         ["Scapular pull-ups or shrugs","10 reps"],
+         ["Cat-cow","8 slow cycles"]],
+  biceps:[["Light curls","15 reps with a very light weight"]],
+  triceps:[["Light pushdowns","15 reps with a very light weight"]],
+  forearms:[["Wrist circles and light wrist curls","15 reps"]],
+  core:[["Dead bug","8 per side"],["Cat-cow","8 slow cycles"]],
+  cardio:[]
+};
+const PREP_NOTE="Dynamic prep only — save long static stretches for after training or a separate session, since holding a stretch for a long time right before heavy sets can briefly reduce force output.";
+
+const DATA_VERSION = 21;
