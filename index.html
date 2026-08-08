@@ -28,6 +28,42 @@ input,textarea{-webkit-user-select:auto;user-select:auto}
 .display{font-family:"Archivo Black",-apple-system,sans-serif;letter-spacing:.5px;text-transform:uppercase}
 .num{font-variant-numeric:tabular-nums}
 #app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+/* ---------- wider screens: use the space instead of a phone-width column ---------- */
+@media (min-width:820px){
+  body{font-size:16.5px}
+  #app{max-width:1080px;padding:0 24px}
+  .screen{padding:28px 8px 40px}
+  .screen.active{display:block}                  /* allow multi-column flow */
+  h1.display{font-size:30px}
+  /* two-column card flow on content-heavy screens */
+  #t-body,#p-body,#prog-body,#g-body,#sci-body,#f-body,#w-body,#hd-body,#m-body{
+    column-count:2;column-gap:20px}
+  #t-body>*,#p-body>*,#prog-body>*,#g-body>*,#sci-body>*,#f-body>*,#w-body>*,#hd-body>*,#m-body>*{
+    break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+  .session-card,.coach,#installbanner,.resume{break-inside:avoid}
+  /* tab bar becomes a centred pill instead of a full-width phone bar */
+  #tabbar{max-width:640px;left:50%;transform:translateX(-50%);border-radius:18px 18px 0 0;
+    border:1px solid var(--line);border-bottom:none}
+  .tab{width:96px;font-size:11px}
+  /* sheets become centred dialogs */
+  #modal{align-items:center}
+  #modal .sheet{max-width:620px;border-radius:20px;max-height:80vh;padding-bottom:24px}
+  /* keep the floating rest timer tidy */
+  #resttimer{max-width:520px}
+  .bodymap svg{max-width:230px}
+  input.f,select.f,.btn{max-width:100%}
+}
+@media (min-width:1200px){
+  #app{max-width:1240px}
+  #t-body,#p-body,#prog-body,#sci-body{column-count:3}
+  #w-body,#g-body,#f-body{column-count:2}
+}
+/* onboarding and single-focus screens stay a readable single column */
+@media (min-width:820px){
+  #s-onboard,#s-profiles,#s-pin,#s-summary{max-width:560px;margin:0 auto;width:100%}
+  #ob-body,#sum-body{column-count:1}
+}
 .screen{display:none;flex:1;flex-direction:column;padding:calc(var(--safe-t) + 12px) 18px calc(var(--safe-b) + 96px)}
 .screen.active{display:flex}
 .screen.no-tab{padding-bottom:calc(var(--safe-b) + 24px)}
@@ -307,7 +343,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=19"></script>
+<script src="data.js?v=21"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -429,6 +465,21 @@ function toggleWarmup(ei){
   live.ex[ei].wuDone=!live.ex[ei].wuDone;saveDraft();renderWorkout();
 }
 
+function prepBlock(){
+  if(!live)return "";
+  const mus=[...new Set(live.ex.map(e=>EX[e.id]&&EX[e.id].m).filter(Boolean))];
+  const seen=new Set(), drills=[];
+  mus.forEach(m=>(PREP[m]||[]).forEach(([n,d])=>{if(!seen.has(n)){seen.add(n);drills.push([n,d]);}}));
+  const shown=drills.slice(0,5);
+  return `<div class="warmup" style="margin-bottom:12px">
+    <b class="tiny" style="color:var(--gold)">🔥 MOVEMENT PREP — ${esc(live.name.toUpperCase())}</b>
+    <div class="tiny" style="margin-top:5px">${esc(WARMUP.general)}</div>
+    ${shown.length?`<div style="margin-top:7px">${shown.map(([n,d])=>
+      `<div class="tiny" style="margin-bottom:3px">• <b>${esc(n)}</b> — ${esc(d)}</div>`).join("")}</div>`:""}
+    <div class="tiny muted" style="margin-top:6px">${esc(PREP_NOTE)}</div>
+    <div class="tiny muted" style="margin-top:4px">Ramp sets for each lift are shown below with that exercise.</div></div>`;
+}
+
 /* ---------- session time ---------- */
 const sessionBudget=()=>(SESSION_TIME[me?.details?.sessionTime]||SESSION_TIME.s75).min;
 function exMinutes(e){
@@ -465,6 +516,9 @@ function fitToTime(day,budget){
     }
     const last=day.exercises.filter(e=>e.sets>2);
     if(last.length){ last[last.length-1].sets--; continue; }
+    // last resort: an all-anchor day (e.g. full-body + strength focus) —
+    // drop the final lift rather than prescribe a session that won't fit
+    if(day.exercises.length>minEx){ day.exercises.pop(); continue; }
     break;   // honestly cannot fit — the UI warns instead of pretending
   }
   return day;
@@ -494,15 +548,33 @@ function rebuildPlan(details,rotOffset,startDate){
   p.days=p.days.concat(keep);
   return p;
 }
+/* How many more weekly sets a muscle can take before hitting its
+   recoverable ceiling, given what the program already prescribes. */
+function plannedWeeklySets(m,plan){
+  return (plan||me.plan).days.reduce((a,d)=>a+d.exercises
+    .filter(e=>EX[e.id]&&EX[e.id].m===m).reduce((b,e)=>b+e.sets,0),0);
+}
+function headroom(m,plan){
+  const L=LANDMARKS[m];if(!L||MUSCLES[m].notMuscle)return 0;
+  const now=plannedWeeklySets(m,plan);
+  return {now,mev:L.mev,mav:L.mav,mrv:L.mrv,
+    toMav:Math.max(0,L.mav-now), toMrv:Math.max(0,Math.round(L.mrv*0.9)-now)};
+}
+/* Frequency of a muscle across the week (sessions containing it) */
+function plannedFrequency(m,plan){
+  return (plan||me.plan).days.filter(d=>d.exercises.some(e=>EX[e.id]&&EX[e.id].m===m)).length;
+}
 function buildCustomDay(key,name){
   const t=DAY_TEMPLATES[key]||DAY_TEMPLATES.empty;
   const mus=t.mus===null?(me.details.priority||[]):t.mus;
+  const sized=t.mus===null;   // weak-points day: size sets by what's left before MRV
   const seen=new Set(),exercises=[];
   mus.forEach(m=>{
     let pool=eqPool(m).filter(id=>!seen.has(id));
     if(!pool.length)pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!seen.has(id));
     if(!pool.length)return;
-    const want=(t.sets&&t.sets[m])||3;
+    let want=(t.sets&&t.sets[m])||3;
+    if(sized){ const hr=headroom(m); want=Math.max(0,Math.min(6,hr.toMrv||0)); if(!want)return; }
     if(m==="cardio"){
       const id=pool[0];seen.add(id);
       exercises.push({id,sets:want,reps:EX[id].reps.slice(),rest:60,custom:true});
@@ -519,19 +591,54 @@ function buildCustomDay(key,name){
 }
 function addCustomDay(key){
   const d=buildCustomDay(key);
-  me.plan.days.push(d);save();closeModal();renderPlan();
+  if(!d.exercises.length){
+    toast("No room left before your recoverable ceiling — try cardio or core");return;
+  }
+  me.plan.days.push(d);
+  d.note=placementNote(d);
+  save();closeModal();renderPlan();
   toast(`"${d.name}" added — ${d.exercises.length} exercise${d.exercises.length===1?"":"s"} ✓`);
+}
+function dayAdvice(){
+  const prio=(me.details.priority||[]).filter(m=>!MUSCLES[m].notMuscle);
+  if(!prio.length)return null;
+  const rows=prio.map(m=>({m,f:plannedFrequency(m),h:headroom(m)}));
+  const gain=rows.filter(r=>r.f<RULES.minFrequency&&r.h.toMrv>0);
+  if(!gain.length){
+    const full=rows.filter(r=>r.h.toMrv<=0);
+    if(full.length)return {c:"warn",html:`<b>${full.map(r=>MUSCLES[r.m].n).join(" and ")}</b> already sit near the top of what you can recover from (${full[0].h.now} sets/wk, ceiling ~${Math.round(full[0].h.mrv*0.9)}). Adding more direct volume would cost recovery without buying growth — a cardio or core day is the better addition.`};
+    return {c:"good",html:`Your priority muscles are already trained ${rows[0].f}× a week with room in the plan. An extra day is optional here — consistency on the existing ${me.plan.days.length} matters more.`};
+  }
+  return {c:"good",html:`<b>Recommended: Weak points.</b> ${gain.map(r=>`${MUSCLES[r.m].n} is trained ${r.f}× a week (${r.h.now} sets)`).join(", ")}. Training a muscle twice weekly beats once at the same volume, so a priority day raises frequency where it counts — and it'll be sized to the ${gain.map(r=>r.h.toMrv).join("/")} sets you have left before your recoverable ceiling.`};
+}
+function placementNote(day){
+  const mus=[...new Set(day.exercises.map(e=>EX[e.id]&&EX[e.id].m).filter(Boolean))];
+  const clash=me.plan.days.slice(0,-1).filter(d=>d.exercises.some(e=>
+    mus.includes(EX[e.id]&&EX[e.id].m)||((EX[e.id]||{}).sec||[]).some(x=>mus.includes(x))));
+  if(!clash.length)return null;
+  return `Schedule it away from ${clash.map(d=>d.name).join(" and ")} — training ${mus.map(m=>MUSCLES[m].n).join("/")} the day before leaves them pre-fatigued for your heavy compounds. A rest day in between is ideal.`;
 }
 function openAddDay(){
   const planned=me.plan.days.length;
-  const warn=planned>=6?`<div class="coach warn"><b>Heads up:</b> you already have ${planned} days. More isn't automatically better — recovery is where growth happens. A light cardio or core day is the safest addition here.</div>`:"";
+  const adv=dayAdvice();
+  const warn=(planned>=6?`<div class="coach warn"><b>Heads up:</b> you already have ${planned} days. More isn't automatically better — recovery is where growth happens. A light cardio or core day is the safest addition here.</div>`:"")
+    +(adv?`<div class="coach ${adv.c}">${adv.html}</div>`:"");
   $("modal-body").innerHTML=`<h2 class="display" style="font-size:20px;margin-bottom:4px">Add a day</h2>
     <p class="tiny muted" style="margin-bottom:12px">Adds to your program permanently. You can swap, add or remove its exercises afterwards like any other day.</p>
     ${warn}
-    ${Object.entries(DAY_TEMPLATES).map(([k,t])=>{
-      const dis=k==="weak"&&!(me.details.priority||[]).length;
-      return `<div class="lib-item" style="${dis?"opacity:.4":""}" onclick="${dis?`toast('Mark a priority muscle first (Muscles tab)')`:`addCustomDay('${k}')`}">
-        <b>＋ ${esc(t.n)}</b><div class="tiny muted" style="margin-top:3px">${esc(t.d)}</div></div>`;}).join("")}
+    ${(()=>{const prio=(me.details.priority||[]).filter(m=>!MUSCLES[m].notMuscle);
+      const keys=Object.keys(DAY_TEMPLATES);
+      if(prio.length)keys.sort((a,b)=>(a==="weak"?-1:b==="weak"?1:0));
+      return keys.map(k=>{const t=DAY_TEMPLATES[k];
+        const dis=k==="weak"&&!prio.length;
+        const rec=k==="weak"&&prio.length&&prio.some(m=>plannedFrequency(m)<RULES.minFrequency&&headroom(m).toMrv>0);
+        const detail=k==="weak"&&prio.length
+          ? prio.map(m=>`${MUSCLES[m].n}: ${headroom(m).now} sets/wk now, room for ${headroom(m).toMrv} more`).join(" · ")
+          : "";
+        return `<div class="lib-item" style="${dis?"opacity:.4":""}${rec?";border-color:var(--green)":""}" onclick="${dis?`toast('Mark a priority muscle first (Muscles tab)')`:`addCustomDay('${k}')`}">
+          <div class="spread"><b>＋ ${esc(t.n)}</b>${rec?`<span class="pill green" style="font-size:9px">RECOMMENDED</span>`:""}</div>
+          <div class="tiny muted" style="margin-top:3px">${esc(t.d)}</div>
+          ${detail?`<div class="tiny blue" style="margin-top:3px">${esc(detail)}</div>`:""}</div>`;}).join("");})()}
     <button class="btn ghost" onclick="closeModal()">Cancel</button>`;
   $("modal").classList.add("show");
 }
@@ -849,8 +956,12 @@ function pushTips(){
   const hasCardio=me.plan.days.some(d=>d.exercises.some(e=>isTimed(e.id)));
   const c=cardioMinutes(0);
   // 1. earned the right to add a day
-  if(!hasExtra&&fullWeeksHit()>=2&&me.plan.days.length<6)
-    out.push({c:"good",h:"You've earned more",t:`${fullWeeksHit()} weeks running you've hit every planned session. That's the signal you can handle a 4th day — abs & cardio is the lowest-recovery-cost option. Program tab → Add a day.`});
+  if(!hasExtra&&fullWeeksHit()>=2&&me.plan.days.length<6){
+    const prio=(me.details.priority||[]).filter(m=>!MUSCLES[m].notMuscle&&plannedFrequency(m)<RULES.minFrequency&&headroom(m).toMrv>0);
+    out.push({c:"good",h:"You've earned more",t:prio.length
+      ? `${fullWeeksHit()} weeks running you've hit every session. ${prio.map(m=>MUSCLES[m].n).join(" and ")} only get trained once a week — a priority day would double that frequency, which the research favours. Program tab → Add a day.`
+      : `${fullWeeksHit()} weeks running you've hit every planned session. That's the signal you can handle another day — abs & cardio is the lowest-recovery-cost option. Program tab → Add a day.`});
+  }
   // 2. cardio gap
   if(H.length>=5&&!hasCardio&&c.pct<40)
     out.push({c:"",h:"Cardio gap",t:`No conditioning logged this week. ${CARDIO_GUIDE.modMin} min of moderate cardio weekly is the health guideline — steady walking or cycling won't cost you muscle. Add it as its own day or tack it onto a session.`});
@@ -950,6 +1061,7 @@ function renderPlan(){
       ${d.custom?`<button class="exmenu" style="width:30px;height:30px;font-size:13px;color:var(--red)" onclick="deleteDay(${i})">✕</button>`:""}
       <button class="btn small ghost" onclick="startWorkout(${i})">Start</button></span></div><div style="height:8px"></div>
     <div class="tiny muted" style="margin:-4px 0 6px">~${dayMinutes(d)} min including warm-up</div>
+    ${d.note?`<div class="tiny gold" style="margin-bottom:6px">📅 ${esc(d.note)}</div>`:""}
     ${d.exercises.map((e,xi)=>`<div class="ex-line"><span class="howto-link" onclick="showHowTo('${e.id}')">${esc(EX[e.id].n)}${e.anchor?' <span class="pill dim" style="font-size:10px">ANCHOR</span>':""}${e.prio?' <span class="pill" style="font-size:10px">PRIORITY</span>':""}</span>
       <span class="row"><span class="muted num">${e.sets}×${e.reps[0]}–${e.reps[1]}</span><button class="exmenu" style="width:30px;height:30px;font-size:15px" onclick="planOptions(${i},${xi})">⇄</button></span></div>`).join("")}
   </div>`).join("");
@@ -1074,9 +1186,7 @@ function openWorkout(){
   $("w-meso").innerHTML=(live.deload
     ?`<span class="pill gold" onclick="rirHelp()" style="cursor:pointer">DELOAD — HALF SETS · RIR 4+ ⓘ</span>`
     :`<span class="pill" onclick="rirHelp()" style="cursor:pointer">WEEK ${mesoWeek()+1} · TARGET RIR ${live.rir} ⓘ</span>`);
-  $("w-general").innerHTML=`<div class="warmup" style="margin-bottom:12px">
-    <b class="tiny" style="color:var(--gold)">🔥 BEFORE YOU START</b>
-    <div class="tiny" style="margin-top:4px">${esc(WARMUP.general)}</div></div>`;
+  $("w-general").innerHTML=prepBlock();
   renderWorkout();go("s-workout");
   clearInterval(clockIv);
   clockIv=setInterval(()=>{if(!live){clearInterval(clockIv);return;}
@@ -1102,8 +1212,12 @@ function renderWorkout(){
         :hold?`${e.sets.length} hold${e.sets.length===1?"":"s"} · ${e.lo}–${e.hi} sec target · rest ${e.rest}s`
         :`${e.sets.length} sets × ${e.lo}–${e.hi} · rest ${e.rest}s · RIR ${live.deload?4:live.rir}`}</div>
       <div class="rec ${rec.kind}">${rec.kind==="up"?"📈 ":rec.kind==="hold"?"🎯 ":"✨ "}${esc(rec.msg)}</div>
-      ${(()=>{const wu=warmupFor(e.id,rec.w||(last?last.topW:0),warmupSchemeFor(ei));
-        if(!wu||!wu.length)return "";
+      ${(()=>{const typed=Math.max(...e.sets.map(x=>parseFloat(x.w)||0));
+        const workW=rec.w||(last?last.topW:0)||typed;
+        const wu=warmupFor(e.id,workW,warmupSchemeFor(ei));
+        if(!wu||!wu.length)return EX[e.id].type==="compound"&&!isTimeBased(e.id)&&!workW
+          ? `<div class="warmup"><b class="tiny" style="color:var(--gold)">🔥 WARM-UP</b>
+             <div class="tiny" style="margin-top:3px">Enter your working weight in set 1 and IronLog will calculate your ramp sets. Until then: 2–3 progressively heavier sets, ending around 80% of what you plan to work with.</div></div>` : "";
         return `<div class="warmup ${e.wuDone?"done":""}" onclick="toggleWarmup(${ei})">
           <div class="spread"><b class="tiny" style="color:var(--gold)">🔥 WARM-UP RAMP${e.wuDone?" — DONE":""}</b>
             <span class="tiny muted">${e.wuDone?"tap to undo":"tap when done"}</span></div>
@@ -1142,7 +1256,11 @@ function renderWorkout(){
   }).join("");
   updateBarViz();
 }
-function setVal(ei,si,k,v){live.ex[ei].sets[si][k]=v;saveDraft();}
+function setVal(ei,si,k,v){
+  const e=live.ex[ei], first=si===0&&k==="w", hadRamp=!!e._ramp;
+  e.sets[si][k]=v; saveDraft();
+  if(first){ e._ramp=!!v; if(!hadRamp&&v) renderWorkout(); }   // show ramp once a weight is known
+}
 function newSet(id){return isTimed(id)?{min:"",int:"moderate",w:0,r:0,done:false}
   :isHold(id)?{w:"",sec:"",r:0,done:false}:{w:"",r:"",rir:"",done:false};}
 function addSet(ei){live.ex[ei].sets.push(newSet(live.ex[ei].id));saveDraft();renderWorkout();}
@@ -1636,15 +1754,15 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 19 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 21 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
    BOOT
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
-  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=19;
+  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","PREP","PREP_NOTE","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
+const REQUIRED_DATA_VERSION=21;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:50px 22px;text-align:center">
