@@ -1765,7 +1765,7 @@ const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","E
 const REQUIRED_DATA_VERSION=21;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
-    `<div style="padding:50px 22px;text-align:center">
+    `<div style="padding:40px 22px 60px;text-align:center;overflow-y:auto">
       <div class="display" style="font-size:26px;margin-bottom:14px">Iron<span style="color:#3D6BFF">Log</span></div>
       <div style="background:#2a1e1e;border:1px solid #FF5D5D;border-radius:14px;padding:16px;font-size:14.5px;text-align:left">
         <b style="color:#FF5D5D">${title}</b><br><br>${detail}
@@ -1801,9 +1801,14 @@ if(typeof MUSCLES==="undefined"||typeof EX==="undefined"||typeof RULES==="undefi
   throw new Error("data.js missing");
 }
 if(typeof DATA_VERSION==="undefined"||DATA_VERSION<REQUIRED_DATA_VERSION){
+  const found=(typeof DATA_VERSION==="undefined")?"none":DATA_VERSION;
   bootFail("Your data.js is out of date.",
-    "The app files are from different versions, so it can't start. Upload the latest <b>data.js</b>, <b>index.html</b> and <b>sw.js</b> together, then tap below.");
-  throw new Error("data.js version mismatch");
+    `Your <b>index.html</b> is version <b>${REQUIRED_DATA_VERSION}</b>, but the <b>data.js</b> it loaded is version <b>${found}</b>.<br><br>`+
+    `<b>Most likely:</b> data.js wasn't uploaded with the new index.html — they must always be replaced together.<br><br>`+
+    `<b>Check:</b> open <span style="opacity:.8">${location.origin+location.pathname.replace(/[^/]*$/,"")}data.js</span> in a browser and look at the last line. `+
+    `It should read <b>const DATA_VERSION = ${REQUIRED_DATA_VERSION};</b><br><br>`+
+    `If it shows ${found}, re-upload data.js to your repo. If it already shows ${REQUIRED_DATA_VERSION}, it's just a cache — tap below.`);
+  throw new Error("data.js version mismatch (found "+found+", needs "+REQUIRED_DATA_VERSION+")");
 }
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 if(!window.navigator.standalone&&/iPhone|iPad/.test(navigator.userAgent))$("installbanner").style.display="block";
