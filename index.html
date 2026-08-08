@@ -343,7 +343,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=21"></script>
+<script src="data.js?v=23"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -435,6 +435,21 @@ function generatePlan(details,rotOffset=0,startDate=null){
   return {key, label:struct.label, note:SPLIT_NOTES[key]||null, rotOffset,
     startDate:startDate||new Date().toISOString(), days};
 }
+/* ---------- setup notes: seat height, pin, grip width, foot position ----------
+   Small thing, big time-saver: the settings you'd otherwise re-guess every week. */
+function getSetup(id){ me.setup=me.setup||{}; return me.setup[id]||""; }
+function editSetup(id){
+  const cur=getSetup(id);
+  const v=prompt(`Setup notes for ${EX[id].n}\n(seat height, pin, grip width, foot position…)`,cur);
+  if(v===null)return;
+  me.setup=me.setup||{};
+  if(v.trim())me.setup[id]=v.trim().slice(0,80); else delete me.setup[id];
+  save();
+  if(live)renderWorkout();
+  if(document.querySelector("#modal.show"))showHowTo(id);
+  toast(v.trim()?"Setup saved ✓":"Setup cleared");
+}
+
 /* ---------- warm-ups: derived from the prescribed working weight ---------- */
 function roundLoad(w){
   const step=unit()==="lb"?5:2.5;
@@ -696,8 +711,18 @@ function recommendNext(exId,lo,hi){
     if(!withMin.length)return {kind:"new",w:null,msg:`Start with ${lo}–${hi} minutes at a pace you could hold a conversation through.`};
     const l=withMin[withMin.length-1];
     const tot=l.sets.reduce((a,s)=>a+(+s.min||0),0), inten=l.sets[l.sets.length-1].int||"moderate";
-    if(tot>=hi)return {kind:"hold",w:null,msg:`Last time ${tot} min (${inten}). You're at the top of the range — hold here, or step the intensity up a notch.`};
-    return {kind:"up",w:null,msg:`Last time ${tot} min (${inten}). Add 2–3 minutes today — build duration before intensity.`};
+    const ls=l.sets[l.sets.length-1];
+    const mx=metricsFor(exId).filter(k=>ls[k]!=null&&ls[k]!=="");
+    const at=mx.length?` at ${mx.map(k=>`${ls[k]}${METRICS[k].u[unit()]} ${METRICS[k].n.toLowerCase()}`).join(", ")}`:"";
+    if(tot>=hi){
+      const bump=mx.includes("inc")?`raise the incline to ${(+ls.inc+1)}%`
+        :mx.includes("spd")?`nudge the speed to ${(+ls.spd+0.5).toFixed(1)}${METRICS.spd.u[unit()]}`
+        :mx.includes("lvl")?`go up to level ${(+ls.lvl+1)}`
+        :mx.includes("dist")?`cover more ground in the same time`
+        :`step the intensity up a notch`;
+      return {kind:"hold",w:null,msg:`Last time ${tot} min${at}. You're at the top of the time range — hold the duration and ${bump}.`};
+    }
+    return {kind:"up",w:null,msg:`Last time ${tot} min${at}. Add 2–3 minutes today at the same settings — build duration before intensity.`};
   }
   if(!hist.length) return {kind:"new",w:null,
     msg:`First time — pick a weight you could do ~${hi+tr} times, stop ${tr} reps shy of failure (RIR ${tr}).`};
@@ -783,7 +808,7 @@ function migrate(u){
   if(!d.goal||!(d.goal in GOALS)) d.goal = d.goal==="fatloss"?"cut":"bulk";
   d.exp=d.exp||"intermediate"; d.days=d.days||3; d.splitPref=d.splitPref||"auto"; d.focus=d.focus&&FOCUS[d.focus]?d.focus:"hypertrophy"; d.sessionTime=d.sessionTime&&SESSION_TIME[d.sessionTime]?d.sessionTime:"s75";
   d.priority=(d.priority||[]).map(p=>p.toLowerCase()).filter(p=>MUSCLES[p]);
-  u.details=d; u.food=u.food||{}; u.history=u.history||[]; u.measures=u.measures||[];
+  u.details=d; u.food=u.food||{}; u.history=u.history||[]; u.measures=u.measures||[]; u.setup=u.setup||{};
   if(!u.plan||!u.plan.key) u.plan=generatePlan(d);
   return u;
 }
@@ -1148,6 +1173,7 @@ function renderMuscle(){
         <div class="tiny muted" style="margin-top:3px">${esc(e.why)}</div>
         <div class="tiny muted" style="margin-top:3px">${EQ_LABEL[e.eq]} · ${e.reps[0]}–${e.reps[1]} reps${ok?"":" · not in your equipment"}</div></div>`;}).join("")}</div>`;
   });
+  if(m==="core")html+=`<div class="coach warn"><b>Worth knowing:</b> abs grow from progressive loading like any muscle — add weight or harder progressions, don't just chase higher reps. But whether they're <i>visible</i> is almost entirely body-fat percentage. No amount of ab work reveals them; that's a nutrition outcome.</div>`;
   html+=`<p class="tiny muted">Rankings blend loading potential, stretch-position tension and progression ease — informed by regional-hypertrophy research (e.g. Maeo 2021/2022) but partly practitioner estimate.</p>`;
   $("m-body").innerHTML=html;
 }
@@ -1208,6 +1234,8 @@ function renderWorkout(){
       <div class="spread"><h3>${esc(EX[e.id].n)}</h3>
         <span class="row"><span class="howto-link" onclick="showHowTo('${e.id}')">How to</span>
         <button class="btn small ghost" style="padding:7px 11px" onclick="exOptions(${ei})">⇄ Swap</button></span></div>
+      ${(()=>{const su=getSetup(e.id);
+        return `<div class="tiny ${su?"blue":"muted"}" style="cursor:pointer;margin-bottom:2px" onclick="editSetup('${e.id}')">${su?`⚙ ${esc(su)}`:"⚙ Add setup notes (seat, pin, grip…)"}</div>`;})()}
       <div class="tiny muted">${timed?`${e.sets.length} bout${e.sets.length===1?"":"s"} · ${e.lo}–${e.hi} min target`
         :hold?`${e.sets.length} hold${e.sets.length===1?"":"s"} · ${e.lo}–${e.hi} sec target · rest ${e.rest}s`
         :`${e.sets.length} sets × ${e.lo}–${e.hi} · rest ${e.rest}s · RIR ${live.deload?4:live.rir}`}</div>
@@ -1223,15 +1251,21 @@ function renderWorkout(){
             <span class="tiny muted">${e.wuDone?"tap to undo":"tap when done"}</span></div>
           <div class="tiny num" style="margin-top:4px">${wu.map(x=>`${fmt1(x.w)} ${unit()}${isPerHand(e.id)?"/hand":""} × ${x.reps}`).join("  →  ")}</div>
           <div class="tiny muted" style="margin-top:3px">Not counted as working sets — this is acclimation, not training.</div></div>`;})()}
-      ${timed?`
-      <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1.6fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">MINUTES</span><span style="text-align:center">INTENSITY</span><span style="text-align:center">✓</span></div>
-      ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:26px 1fr 1.6fr 46px">
+      ${timed?(()=>{const mx=metricsFor(e.id);
+        const cols=`26px 1fr 1.4fr ${mx.map(()=>"1fr").join(" ")} 46px`;
+        return `
+      <div class="set-row tiny muted" style="grid-template-columns:${cols};margin-bottom:4px"><span></span>
+        <span style="text-align:center">MIN</span><span style="text-align:center">EFFORT</span>
+        ${mx.map(k=>`<span style="text-align:center">${METRICS[k].n.toUpperCase()}${METRICS[k].u[unit()]?`<br><span style="opacity:.6">${METRICS[k].u[unit()]}</span>`:""}</span>`).join("")}
+        <span style="text-align:center">✓</span></div>
+      ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:${cols}">
         <span class="set-num num">${si+1}</span>
         <input inputmode="numeric" class="num" placeholder="${last&&last.sets[si]&&last.sets[si].min?last.sets[si].min:e.lo}" value="${s.min||""}" onchange="setVal(${ei},${si},'min',this.value)">
-        <select class="f" style="padding:10px 6px;font-size:14px" onchange="setVal(${ei},${si},'int',this.value)">
+        <select class="f" style="padding:10px 4px;font-size:13px" onchange="setVal(${ei},${si},'int',this.value)">
           ${INTENSITIES.map(x=>`<option value="${x}" ${(s.int||"moderate")===x?"selected":""}>${x}</option>`).join("")}</select>
+        ${mx.map(k=>`<input inputmode="${METRICS[k].step}" class="num" placeholder="${last&&last.sets[si]&&last.sets[si][k]?last.sets[si][k]:METRICS[k].ph[unit()]}" value="${s[k]||""}" onchange="setVal(${ei},${si},'${k}',this.value)">`).join("")}
         <button class="set-done ${s.done?"on":""}" onclick="toggleSet(${ei},${si},this)">${s.done?"✓":""}</button></div>`).join("")}
-      <button class="btn small ghost" onclick="addSet(${ei})">＋ Add bout</button>`:hold?`
+      <button class="btn small ghost" onclick="addSet(${ei})">＋ Add bout</button>`;})():hold?`
       <div class="set-row tiny muted" style="grid-template-columns:26px 1fr 1fr 46px;margin-bottom:4px"><span></span><span style="text-align:center">+${unit().toUpperCase()}${isPerHand(e.id)?"/HAND":""}</span><span style="text-align:center">SECONDS</span><span style="text-align:center">✓</span></div>
       ${e.sets.map((s,si)=>`<div class="set-row" style="grid-template-columns:26px 1fr 1fr 46px">
         <span class="set-num num">${si+1}</span>
@@ -1261,7 +1295,8 @@ function setVal(ei,si,k,v){
   e.sets[si][k]=v; saveDraft();
   if(first){ e._ramp=!!v; if(!hadRamp&&v) renderWorkout(); }   // show ramp once a weight is known
 }
-function newSet(id){return isTimed(id)?{min:"",int:"moderate",w:0,r:0,done:false}
+function newSet(id){return isTimed(id)?Object.assign({min:"",int:"moderate",w:0,r:0,done:false},
+  Object.fromEntries(metricsFor(id).map(k=>[k,""])))
   :isHold(id)?{w:"",sec:"",r:0,done:false}:{w:"",r:"",rir:"",done:false};}
 function addSet(ei){live.ex[ei].sets.push(newSet(live.ex[ei].id));saveDraft();renderWorkout();}
 function toggleSet(ei,si,btn){
@@ -1272,6 +1307,9 @@ function toggleSet(ei,si,btn){
       if(!s.min)s.min=ins[0].value||ins[0].placeholder;
       ins[0].value=s.min;
       if(!s.int)s.int=btn.parentElement.querySelector("select")?.value||"moderate";
+      metricsFor(e.id).forEach((k,i)=>{const el=ins[i+1];
+        if(el&&!s[k])s[k]=el.value||el.placeholder;
+        if(el)el.value=s[k]||"";});
       s.w=0;s.r=0;
     }else if(isHold(e.id)){
       if(!s.w)s.w=(ins[0].value||"").trim()||0;          // blank = bodyweight
@@ -1391,7 +1429,8 @@ function stopRest(){clearInterval(restIv);restIv=null;$("resttimer").classList.r
 function finishWorkout(){
   const exercises=live.ex.map(e=>({id:e.id,name:EX[e.id].n,
     sets:e.sets.filter(s=>s.done&&(isTimed(e.id)?s.min:isHold(e.id)?s.sec:s.r)).map(s=>isTimed(e.id)
-      ?{min:parseFloat(s.min)||0,int:s.int||"moderate",w:0,r:0}
+      ?Object.assign({min:parseFloat(s.min)||0,int:s.int||"moderate",w:0,r:0},
+        Object.fromEntries(metricsFor(e.id).map(k=>[k,parseFloat(s[k])||null]).filter(([,v])=>v!=null)))
       :isHold(e.id)?{w:parseFloat(s.w)||0,sec:parseInt(s.sec)||0,r:0}
       :{w:parseFloat(s.w)||0,r:parseInt(s.r)||0,rir:s.rir===""?null:+s.rir})
   })).filter(e=>e.sets.length);
@@ -1428,7 +1467,9 @@ function renderSummary(entry,prevMax,prevBest,sameDayPrev){
     if(isHold(e.id)){const best=Math.max(...e.sets.map(s=>+s.sec||0)),w=Math.max(...e.sets.map(s=>+s.w||0));
       return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${e.sets.map(s=>`${s.sec}s`).join(", ")}${w?` +${w} ${unit()}`:""}</span></span><span class="pill dim" style="font-size:10px">HOLD</span></div>`;}
     if(isTimed(e.id)){const tot=e.sets.reduce((a,s)=>a+(+s.min||0),0);
-      return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${tot} min</span></span><span class="pill dim" style="font-size:10px">CARDIO</span></div>`;}
+      const ls=e.sets[e.sets.length-1];
+      const mx=metricsFor(e.id).filter(k=>ls[k]!=null).map(k=>`${ls[k]}${METRICS[k].u[unit()]}`).join(" · ");
+      return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${tot} min${mx?" · "+mx:""}</span></span><span class="pill dim" style="font-size:10px">CARDIO</span></div>`;}
     return `<div class="pr-row"><span>${esc(e.name)} <span class="tiny muted num">${e.sets.map(s=>s.w+"×"+s.r).join(", ")}</span></span>${ar}</div>`;}).join("");
   $("sum-body").innerHTML=`
     <div class="sum-hero"><div class="pill green">WORKOUT SAVED</div>
@@ -1569,7 +1610,7 @@ function openHist(i){
     <p class="sub">${new Date(h.date).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})} · ${Math.round(h.volume).toLocaleString()} ${unit()}${h.dur?` · ${h.dur} min`:""}</p>
     ${h.exercises.map(e=>`<div class="card"><b>${esc(e.name)}</b>
       <div class="tiny muted num" style="margin-top:4px">${isTimed(e.id)
-        ?e.sets.map(s=>`${s.min} min (${s.int||"moderate"})`).join("  ·  ")
+        ?e.sets.map(s=>`${s.min} min (${s.int||"moderate"})${metricsFor(e.id).filter(k=>s[k]!=null).map(k=>` ${s[k]}${METRICS[k].u[unit()]}`).join("")}`).join("  ·  ")
         :isHold(e.id)
         ?e.sets.map(s=>`${+s.w?`${s.w} ${unit()} × `:""}${s.sec}s`).join("  ·  ")
         :e.sets.map(s=>`${s.w} ${unit()}${isPerHand(e.id)?"/hand":""} × ${s.r}${s.rir!=null?` @${s.rir}RIR`:""}`).join("  ·  ")}</div></div>`).join("")}
@@ -1711,6 +1752,8 @@ function showHowTo(id){
     <h2 class="display" style="font-size:22px;margin:10px 0 6px">${esc(e.n)}</h2>
     ${L?`<div class="rec hold" style="margin:0 0 10px">🏅 Your level here: <b>${L.name}</b> (e1RM ${L.e1} ${unit()} = ${L.ratio}×BW)${L.next?` — ${L.next} at ~${L.nextAt} ${unit()}`:""}</div>`:""}
     <p class="tiny muted" style="margin-bottom:12px">${esc(e.why)} Targets: ${e.sub.map(s=>MUSCLES[e.m].subs[s]).join(", ")}.</p>
+    <div class="rec ${getSetup(id)?"hold":"new"}" style="margin:0 0 12px;cursor:pointer" onclick="editSetup('${id}')">
+      ⚙ <b>Setup:</b> ${getSetup(id)?esc(getSetup(id)):"tap to save seat height, pin position, grip width…"}</div>
     ${isPerHand(id)?`<div class="rec hold" style="margin:0 0 12px">⚖️ Uses two dumbbells. Log <b>one</b> dumbbell's weight — IronLog counts both when totalling volume.</div>`:""}
     ${e.cues.map((s,i)=>`<div class="step"><div class="n">${i+1}</div><div>${esc(s)}</div></div>`).join("")}
     <div class="tiny muted" style="font-weight:700;margin:12px 0 4px">COMMON FAULTS</div>
@@ -1733,7 +1776,7 @@ function importData(el){
       if(!o||!o.details||!Array.isArray(o.history)) throw 0;
       if(!confirm(`Restore backup${o.name?` of "${o.name}"`:""}? This replaces ${me.name}'s current data.`))return;
       me.name=o.name||me.name; me.details=o.details; me.history=o.history;
-      me.food=o.food||{}; me.plan=o.plan||null; me.pin=o.pin??me.pin;
+      me.food=o.food||{}; me.plan=o.plan||null; me.pin=o.pin??me.pin; me.setup=o.setup||{};
       migrate(me); save(); render("s-profile"); toast("Backup restored ✓");
     }catch(e){ toast("That's not a valid IronLog backup file"); }
   };
@@ -1754,15 +1797,15 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 21 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 23 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
    BOOT
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
-  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","PREP","PREP_NOTE","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=21;
+  "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","PREP","PREP_NOTE","METRICS","metricsFor","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
+const REQUIRED_DATA_VERSION=23;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:40px 22px 60px;text-align:center;overflow-y:auto">
