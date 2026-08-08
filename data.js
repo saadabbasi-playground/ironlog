@@ -1067,4 +1067,80 @@ const PREP={
 };
 const PREP_NOTE="Dynamic prep only — save long static stretches for after training or a separate session, since holding a stretch for a long time right before heavy sets can briefly reduce force output.";
 
-const DATA_VERSION = 21;
+
+/* ============================================================
+   EXPANSION 4 — core: accessible entry points, loaded obliques,
+   and progressions for people who've outgrown the basics.
+============================================================ */
+Object.assign(EX,{
+crunch:{n:"Crunch",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[12,25],
+  why:"The simplest loaded-spine-flexion pattern — no equipment, and the entry point everything else builds on.",
+  cues:["Lie on your back, knees bent, feet flat.","Curl the ribs toward the hips — shoulder blades leave the floor.","Hands at the temples, never pulling the head.","Squeeze 1s at the top, lower slowly."],
+  faults:["Yanking the neck with the hands.","Bouncing off the floor.","Hip-flexing into a sit-up instead of curling the spine."]},
+lying_leg_raise:{n:"Lying Leg Raise",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[10,20],
+  why:"The floor version of the hanging leg raise — same lower-ab emphasis without needing a bar or grip strength.",
+  cues:["Lie flat, hands under the glutes for support.","Raise the legs with straight-ish knees.","Curl the pelvis slightly off the floor at the top.","Lower slowly — stop before the lower back arches."],
+  faults:["Lower back arching off the floor (bend the knees instead).","Using momentum to swing the legs."]},
+bicycle_crunch:{n:"Bicycle Crunch",m:"core",sub:["rectus","obliques"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[15,30],
+  why:"Hits rectus and obliques together through rotation; reps counted per side.",
+  cues:["Opposite elbow toward opposite knee.","Rotate through the ribs, not just the elbows.","Extend the other leg long and low.","Slow and controlled — this is not a race."],
+  faults:["Speeding through with no rotation.","Pulling on the neck."]},
+v_up:{n:"V-Up",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[8,15],
+  why:"Trains the upper and lower abs simultaneously — a step up from crunches and leg raises done separately.",
+  cues:["Lie flat, arms overhead.","Fold at the hips, reaching hands to feet.","Keep legs as straight as control allows.","Lower under control, don't collapse."],
+  faults:["Using a floor bounce to launch.","Bending the knees to cheat the range."]},
+toes_to_bar:{n:"Toes-to-Bar",m:"core",sub:["rectus"],sec:["back","forearms"],bias:"stretch",type:"isolation",eq:"bw",reps:[5,12],
+  why:"The hardest bodyweight flexion progression — full range from a dead hang with a strong pelvic curl at the top.",
+  cues:["Dead hang, shoulders active.","Curl the pelvis and drive the toes to the bar.","No swinging — control both directions.","Regress to knees-to-chest if needed."],
+  faults:["Kipping and swinging.","Only lifting at the hips without curling the pelvis."]},
+dragon_flag:{n:"Dragon Flag",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[3,8],
+  why:"Extreme anti-extension loading through a long lever — an advanced progression, best trained with slow eccentrics.",
+  cues:["Grip a bench behind your head, shoulders planted.","Raise the whole body straight, pivoting on the shoulders.","Lower as slowly as possible, body rigid.","Bend the knees to regress."],
+  faults:["Piking at the hips.","Lower back arching — stop the set when it does."]},
+side_bend:{n:"Dumbbell Side Bend",m:"core",sub:["obliques"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[12,20],impl:1,
+  why:"Loaded lateral flexion — the obliques' own movement, and one of the few ways to progressively load them.",
+  cues:["One dumbbell, one hand, stand tall.","Bend sideways to a stretch, then pull back up with the obliques.","Hips stay square and still.","One side at a time."],
+  faults:["Twisting instead of bending sideways.","Leaning forward or back."]},
+suitcase_carry:{n:"Suitcase Carry",m:"core",sub:["obliques"],sec:["forearms"],bias:"mid",type:"compound",eq:"db",reps:[30,60],track:"hold",impl:1,
+  why:"Anti-lateral-flexion: one heavy weight on one side forces the obliques to keep you upright. Reps = seconds per side.",
+  cues:["One heavy dumbbell, one hand.","Stand tall — resist leaning toward the weight.","Ribs down, shoulders level.","Walk smoothly, then swap sides."],
+  faults:["Leaning away from the weight.","Shrugging the loaded shoulder."]},
+bird_dog:{n:"Bird Dog",m:"core",sub:["obliques","rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw",reps:[8,15],
+  why:"Anti-rotation and anti-extension with no load — the safest place to start, and good prep before heavy lifting.",
+  cues:["On hands and knees, spine neutral.","Extend the opposite arm and leg until level with the torso.","Hips stay square — don't let them rotate open.","Pause 2s, switch sides."],
+  faults:["Hips rotating.","Lower back sagging.","Rushing the reps."]}
+});
+RANK.core=["cablecrunch","ab_wheel","legs_raise","toes_to_bar","machine_crunch","v_up","lying_leg_raise",
+  "reverse_crunch","decline_crunch","crunch","bicycle_crunch","dragon_flag","hollow_hold","plank",
+  "pallof","woodchopper","side_bend","suitcase_carry","side_plank","russian_twist","bird_dog","dead_bug"];
+PATTERNS["Ab flexion"]=["cablecrunch","machine_crunch","decline_crunch","crunch","reverse_crunch","v_up","ab_wheel"];
+PATTERNS["Leg raise"]=["legs_raise","lying_leg_raise","toes_to_bar","dragon_flag"];
+PATTERNS["Anti-rotation"]=["plank","side_plank","pallof","russian_twist","hollow_hold","woodchopper","dead_bug","bird_dog","bicycle_crunch"];
+PATTERNS["Lateral flexion"]=["side_bend","suitcase_carry"];
+PREP.core=[["Dead bug","8 per side"],["Cat-cow","8 slow cycles"],["Bird dog","6 per side, slow"]];
+
+/* ============================================================
+   CARDIO METRICS — speed/incline/level/distance are the "load"
+   for conditioning; without them progression is guesswork.
+============================================================ */
+const METRICS={
+  spd:{n:"Speed",   u:{kg:"km/h",lb:"mph"}, step:"decimal", ph:{kg:"5.5",lb:"3.5"}},
+  inc:{n:"Incline", u:{kg:"%",lb:"%"},      step:"decimal", ph:{kg:"8",lb:"8"}},
+  lvl:{n:"Level",   u:{kg:"",lb:""},        step:"numeric", ph:{kg:"8",lb:"8"}},
+  dist:{n:"Distance",u:{kg:"km",lb:"mi"},   step:"decimal", ph:{kg:"3",lb:"2"}},
+  load:{n:"Load",   u:{kg:"kg",lb:"lb"},    step:"decimal", ph:{kg:"40",lb:"90"}}
+};
+/* which metrics each cardio movement should capture */
+EX.incline_walk.mx=["spd","inc"];
+EX.run.mx=["spd","dist"];
+EX.brisk_walk.mx=["dist"];
+EX.cycle.mx=["lvl"];
+EX.hiit_bike.mx=["lvl"];
+EX.row_erg.mx=["dist"];
+EX.stairmaster.mx=["lvl"];
+EX.elliptical.mx=["lvl"];
+EX.swim.mx=["dist"];
+EX.sled_push.mx=["load"];
+EX.jump_rope.mx=[];
+const metricsFor=id=>(EX[id]&&EX[id].mx)||[];
+const DATA_VERSION = 23;
