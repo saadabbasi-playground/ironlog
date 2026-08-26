@@ -1143,4 +1143,62 @@ EX.swim.mx=["dist"];
 EX.sled_push.mx=["load"];
 EX.jump_rope.mx=[];
 const metricsFor=id=>(EX[id]&&EX[id].mx)||[];
-const DATA_VERSION = 23;
+
+/* ============================================================
+   EXPANSION 5 — machine gaps: rear delts, assisted pull-up,
+   Smith OHP, curl machine, low cable fly, reverse hyper, more.
+============================================================ */
+Object.assign(EX,{
+machine_reverse_fly:{n:"Reverse Pec Deck (Rear Delt Machine)",m:"back",sub:["rear"],sec:[],bias:"short",type:"isolation",eq:"mc",reps:[12,20],
+  why:"The most common rear-delt machine in any gym — stable, easy to isolate, and hard to cheat on.",
+  cues:["Chest against the pad, handles at shoulder height.","Sweep the arms back and out, leading with the elbows.","Squeeze the shoulder blades together at the back.","Control the return — don't let the stack slam."],
+  faults:["Using the chest/pad to bounce the weight.","Pressing down instead of pulling back.","Going so heavy the range shortens to nothing."]},
+assisted_pullup:{n:"Assisted Pull-Up Machine",m:"back",sub:["lats"],sec:["biceps"],bias:"stretch",type:"compound",eq:"mc",reps:[6,12],
+  why:"Counterweighted assistance lets you train the full pull-up range before you can do bodyweight reps — the back equivalent of the assisted dip machine.",
+  cues:["Knees or feet on the pad, more weight = more help.","Full dead-hang start, same as a real pull-up.","Drive elbows down to the ribs.","Reduce the assistance over time, not the range of motion."],
+  faults:["Bouncing off the pad between reps.","Cutting the top or bottom range short.","Relying on so much assistance that it stops being a back exercise."]},
+smith_ohp:{n:"Smith Machine Overhead Press",m:"shoulders",sub:["front"],sec:["triceps"],bias:"mid",type:"compound",eq:"mc",reps:[6,12],
+  why:"Fixed bar path for overhead pressing — lets you push closer to failure without stabilising the bar path yourself.",
+  cues:["Bar just in front of the face, not behind the neck.","Press straight up to lockout.","Feet slightly forward of the bar for a clean path.","Control the descent to the collarbone."],
+  faults:["Pressing behind the neck (shoulder strain).","Flaring the ribs to gain range.","Locking out so hard it shifts to the traps."]},
+machine_curl:{n:"Seated Machine Bicep Curl",m:"biceps",sub:["long","short"],sec:[],bias:"mid",type:"isolation",eq:"mc",reps:[10,15],
+  why:"A dedicated curl machine — different feel from preacher or free-weight curls, and easy to load precisely for straight sets.",
+  cues:["Upper arms flat on the pad.","Curl to full contraction, squeeze 1s.","Control the negative through the full range.","Don't let the elbows lift off the pad."],
+  faults:["Elbows rising off the pad.","Using momentum to start the rep.","Cutting the bottom stretch short."]},
+low_cable_fly:{n:"Low-to-High Cable Fly",m:"chest",sub:["lower"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[10,15],
+  why:"The only cable option that targets the lower/costal chest fibres — everything else here is barbell or bodyweight.",
+  cues:["Cables set low, pulling up and across.","Slight forward lean, soft elbow bend.","Squeeze at the top, in front of the lower chest.","Control the stretch back down."],
+  faults:["Turning it into a shoulder raise.","Standing too far back and losing the angle.","Using the biceps to bend and press instead of flying."]},
+reverse_hyper:{n:"Reverse Hyperextension",m:"back",sub:["erectors"],sec:["glutes","hamstrings"],bias:"stretch",type:"isolation",eq:"mc",reps:[10,15],
+  why:"Loads the erectors and glutes through hip extension while decompressing the spine — a genuinely different stimulus from a standing back extension.",
+  cues:["Hips on the pad, torso braced, legs hanging free.","Swing the legs up to hip height using the glutes and lower back.","Pause briefly at the top.","Lower under control — don't let momentum take over."],
+  faults:["Kipping with momentum instead of controlled hip extension.","Hyperextending violently at the top.","Using the arms to yank the handles instead of the hips to lift."]},
+machine_kickback:{n:"Glute Kickback Machine",m:"glutes",sub:["max"],sec:[],bias:"short",type:"isolation",eq:"mc",reps:[12,20],
+  why:"A dedicated plate-loaded kickback machine — heavier loading than the cable version with a very stable path.",
+  cues:["Foot on the platform, chest supported.","Drive the leg straight back to full hip extension.","Squeeze the glute 1s at the top.","Return under control, don't let the weight stack slam."],
+  faults:["Arching the lower back to gain range.","Rushing the tempo.","Turning it into a leg press instead of a glute-focused kick."]},
+torso_rotation:{n:"Torso Rotation Machine",m:"core",sub:["obliques"],sec:[],bias:"mid",type:"isolation",eq:"mc",reps:[12,20],
+  why:"Loaded rotation with a fixed, safe path — good for progressively overloading the obliques' actual movement.",
+  cues:["Hips locked against the pad, rotate through the torso only.","Controlled rotation to each side, no jerking.","Keep the movement smooth — this is not a twisting crunch.","Match the range and pace both directions."],
+  faults:["Using the hips and legs to help rotate.","Going so heavy the range collapses.","Fast, uncontrolled swinging."]}
+});
+Object.assign(RANK,{
+  shoulders:["ohp","dbohp","arnold","machine_ohp","smith_ohp","landmine_press","cable_latraise","latraise","machine_latraise","upright_row","front_raise"],
+  back:["pullup","pulldown","row_bb","dbrow","chinup","assisted_pullup","tbar_row","chest_supported_row","row_cable","single_cable_row","meadows_row","machine_row","neutral_pulldown","deadlift","rack_pull","inverted_row","straight_arm_pd","pullover_cb","facepull","machine_reverse_fly","cable_rear_delt","reverse_fly","back_ext","reverse_hyper","shrug_db","barbell_shrug"],
+  biceps:["incline_curl","curl","bb_curl","preacher_curl","cable_bayesian","cable_curl","machine_curl","spider_curl","concentration_curl","hammer","reverse_curl"],
+  chest:["bench","incline_db","dbbench","incline_bb","dips_chest","machine_press","smith_bench","decline_press","db_fly","cable_fly","incline_cable_fly","low_cable_fly","db_pullover","pec_deck","pushup","deficit_pushup"],
+  glutes:["hipthrust","bulgarian","db_hipthrust","machine_hipthrust","pullthrough","kb_swing","kickback_glute","machine_kickback","frog_pump","abduction"],
+  core:["cablecrunch","ab_wheel","legs_raise","toes_to_bar","machine_crunch","v_up","lying_leg_raise","reverse_crunch","decline_crunch","crunch","bicycle_crunch","dragon_flag","hollow_hold","plank","pallof","torso_rotation","woodchopper","side_bend","suitcase_carry","side_plank","russian_twist","bird_dog","dead_bug"]
+});
+Object.assign(PATTERNS,{
+  "Overhead press":["ohp","dbohp","arnold","machine_ohp","smith_ohp","landmine_press"],
+  "Vertical pull":["pullup","chinup","assisted_pullup","pulldown","neutral_pulldown"],
+  "Rear delt":["facepull","reverse_fly","cable_rear_delt","machine_reverse_fly"],
+  "Biceps curl":["curl","bb_curl","cable_curl","machine_curl","cable_bayesian","incline_curl","preacher_curl","spider_curl","concentration_curl"],
+  "Chest fly":["cable_fly","db_fly","pec_deck","incline_cable_fly","low_cable_fly","db_pullover"],
+  "Back extension":["back_ext","reverse_hyper"],
+  "Glute isolation":["abduction","kickback_glute","machine_kickback"],
+  "Anti-rotation":["plank","side_plank","pallof","russian_twist","hollow_hold","dead_bug","bird_dog","bicycle_crunch"],
+  "Loaded rotation":["woodchopper","torso_rotation"]
+});
+const DATA_VERSION = 24;
