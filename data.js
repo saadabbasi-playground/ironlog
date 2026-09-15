@@ -15,7 +15,7 @@ const MUSCLES = {
   triceps:    {n:"Triceps",    subs:{long:"Long head", lateral:"Lateral head", medial:"Medial head"}},
   quads:      {n:"Quads",      subs:{rf:"Rectus femoris", vasti:"Vasti (outer/inner/deep)"}},
   hamstrings: {n:"Hamstrings", subs:{hinge:"Hip-hinge biased", knee:"Knee-flexion biased"}},
-  glutes:     {n:"Glutes",     subs:{max:"Gluteus maximus", med:"Gluteus medius"}},
+  glutes:     {n:"Glutes",     subs:{max:"Gluteus maximus", med:"Gluteus medius", add:"Adductors (inner thigh)"}},
   calves:     {n:"Calves",     subs:{gastroc:"Gastrocnemius", soleus:"Soleus"}},
   core:       {n:"Core",       subs:{rectus:"Rectus abdominis", obliques:"Obliques"}}
 };
@@ -122,15 +122,15 @@ bench:{n:"Barbell Bench Press",m:"chest",sub:["mid"],sec:["triceps","shoulders"]
   why:"Highest loading potential for the pecs; sternal fibres take most of the tension at a flat angle.",
   cues:["Shoulder blades pinched back and down onto the bench.","Feet planted, slight arch, eyes under bar.","Lower to mid-chest in ~2s.","Press up and slightly back — don't bounce."],
   faults:["Flaring elbows to 90° (shoulder stress).","Cutting range short of the chest.","Hips lifting off the bench."]},
-incline_bb:{n:"Incline Barbell Press",m:"chest",sub:["upper"],sec:["shoulders","triceps"],bias:"mid",type:"compound",eq:"bb",reps:[6,10],
+incline_bb:{n:"Incline Barbell Press",m:"chest",sub:["upper"],sec:["shoulders","triceps"],bias:"mid",type:"compound",eq:"bb",reps:[6,10],needs:["bn"],
   why:"~30° incline shifts tension to the clavicular (upper) fibres.",
   cues:["Bench at 30° — steeper turns it into a shoulder press.","Touch just below the collarbones.","Elbows ~45–60° from torso."],
   faults:["Bench angle too steep.","Bouncing off the chest."]},
-incline_db:{n:"Incline DB Press",m:"chest",impl:2,sub:["upper"],sec:["shoulders","triceps"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],
+incline_db:{n:"Incline DB Press",m:"chest",impl:2,sub:["upper"],sec:["shoulders","triceps"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],needs:["bn"],
   why:"Dumbbells allow a deeper stretch than a bar — long-length tension favours upper-chest growth.",
   cues:["30° bench.","Lower until you feel a deep upper-chest stretch.","Press up and slightly together."],
   faults:["Stopping the descent early.","Turning it into a fly on the way down."]},
-dbbench:{n:"Dumbbell Bench Press",m:"chest",impl:2,sub:["mid"],sec:["triceps","shoulders"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],
+dbbench:{n:"Dumbbell Bench Press",m:"chest",impl:2,sub:["mid"],sec:["triceps","shoulders"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],needs:["bn"],
   why:"Greater range of motion than a barbell — more stretch on the pecs at the bottom.",
   cues:["Wrists stacked over elbows.","Lower slowly to a full stretch.","Dumbbells close but not clanging at the top."],
   faults:["Half reps at the bottom.","Shoulders rolling forward."]},
@@ -151,7 +151,7 @@ pushup:{n:"Push-Up",m:"chest",sub:["mid"],sec:["triceps","shoulders","core"],bia
   cues:["One straight line head-to-heels.","Chest to just above the floor.","Elbows ~45°. Elevate feet to progress."],
   faults:["Sagging hips.","Flared elbows.","Partial depth."]},
 /* ---------------- BACK ---------------- */
-pullup:{n:"Pull-Up",m:"back",sub:["lats"],sec:["biceps","core"],bias:"stretch",type:"compound",eq:"bw",reps:[5,12],
+pullup:{n:"Pull-Up",m:"back",sub:["lats"],sec:["biceps","core"],bias:"stretch",type:"compound",eq:"bw",reps:[5,12],needs:["pb"],
   why:"Loads the lats through a full stretch at the dead hang; king of vertical pulls.",
   cues:["Full dead-hang start.","Drive elbows down, chest to bar.","No kipping; slow negative."],
   faults:["Half reps from the bottom.","Chin-poking instead of chest leading."]},
@@ -213,7 +213,7 @@ cable_latraise:{n:"Cable Lateral Raise",m:"shoulders",sub:["side"],sec:[],bias:"
   cues:["Cable at the lowest setting, start behind the body.","Raise out to shoulder height.","Constant tension — no resting at the bottom."],
   faults:["Standing too far from the stack.","Turning it into an upright row."]},
 /* ---------------- BICEPS ---------------- */
-incline_curl:{n:"Incline DB Curl",m:"biceps",impl:2,sub:["long"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[8,12],
+incline_curl:{n:"Incline DB Curl",m:"biceps",impl:2,sub:["long"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[8,12],needs:["bn"],
   why:"Arms behind the torso put the long head under stretch — strongest regional-growth signal.",
   cues:["Bench ~45–60°, arms hanging back.","Curl without the elbows drifting forward.","Full stretch at the bottom of every rep."],
   faults:["Elbows creeping up to the front.","Shortening the bottom range."]},
@@ -246,7 +246,7 @@ pushdown:{n:"Cable Pushdown (Rope)",m:"triceps",sub:["lateral","medial"],sec:[],
   why:"Peak-contraction work for the lateral head — the visible outer sweep of the arm.",
   cues:["Elbows pinned, slight forward lean.","Push down and split the rope at lockout.","1s hard squeeze at the bottom."],
   faults:["Elbows rising on the way up.","Leaning over the cable and pressing with bodyweight."]},
-skull:{n:"Skull Crusher",m:"triceps",impl:2,sub:["long","lateral"],sec:[],bias:"mid",type:"isolation",eq:"db",reps:[8,12],
+skull:{n:"Skull Crusher",m:"triceps",impl:2,sub:["long","lateral"],sec:[],bias:"mid",type:"isolation",eq:"db",reps:[8,12],needs:["bn"],
   why:"Lowering behind the head gets partial long-head stretch with heavier loading than overhead work.",
   cues:["Lower toward the forehead or just behind it.","Upper arms vertical and still.","Elbows track straight, no flare."],
   faults:["Turning it into a close-grip press.","Elbows drifting back."]},
@@ -305,7 +305,7 @@ hipthrust:{n:"Barbell Hip Thrust",m:"glutes",sub:["max"],sec:["hamstrings"],bias
   why:"Peak glute tension at full hip extension — heaviest direct glute loading.",
   cues:["Upper back on a bench, bar over the hips.","Drive to a full lockout, ribs down.","1s hard squeeze at the top."],
   faults:["Arching the lower back instead of extending hips.","Partial lockouts."]},
-bulgarian:{n:"Bulgarian Split Squat",m:"glutes",impl:2,sub:["max"],sec:["quads"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],
+bulgarian:{n:"Bulgarian Split Squat",m:"glutes",impl:2,sub:["max"],sec:["quads"],bias:"stretch",type:"compound",eq:"db",reps:[8,12],needs:["bn"],
   why:"Deep unilateral stretch on the glute of the front leg — outstanding growth-per-kilo.",
   cues:["Rear foot on a bench, long stance for glute bias.","Sink deep, slight forward torso lean.","Drive through the front heel."],
   faults:["Stance too short (all quads).","Bouncing off the back leg."]},
@@ -327,7 +327,7 @@ cablecrunch:{n:"Cable Crunch",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"is
   why:"Loaded spinal flexion — abs grow with progressive load like any muscle.",
   cues:["Kneel under a high cable, rope behind the head.","Curl ribs to hips — it's a spine curl, not a hip hinge.","Slow return to a full stretch."],
   faults:["Hinging at the hips.","Pulling with the arms."]},
-legs_raise:{n:"Hanging Leg Raise",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[8,15],
+legs_raise:{n:"Hanging Leg Raise",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[8,15],needs:["pb"],
   why:"Trains the lower abdominal region with a loaded stretch at the hang.",
   cues:["Raise by curling the pelvis up, not just lifting legs.","No swinging.","Bend knees to regress."],
   faults:["Swinging momentum.","Only moving at the hips."]},
@@ -402,11 +402,11 @@ machine_press:{n:"Chest Press Machine",m:"chest",sub:["mid"],sec:["triceps"],bia
   why:"Stable pressing you can take to true failure — ideal for late-session volume.",
   cues:["Handles level with mid-chest.","Press without locking harshly.","Slow return to a chest stretch."],
   faults:["Seat too high or low.","Shoulders rolling forward at the bottom."]},
-db_fly:{n:"Dumbbell Fly",m:"chest",impl:2,sub:["mid"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],
+db_fly:{n:"Dumbbell Fly",m:"chest",impl:2,sub:["mid"],sec:[],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],needs:["bn"],
   why:"Deep pec stretch at the bottom — the position that drives chest growth.",
   cues:["Slight fixed elbow bend.","Open wide to a strong stretch.","Hug back up, squeeze at the top."],
   faults:["Bending elbows into a press.","Going so heavy the shoulders take over."]},
-incline_cable_fly:{n:"Incline Cable Fly",m:"chest",sub:["upper"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[10,15],
+incline_cable_fly:{n:"Incline Cable Fly",m:"chest",sub:["upper"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[10,15],needs:["bn"],
   why:"Constant tension on the upper chest through the full range — cables don't lose load at the stretch.",
   cues:["Bench at 30° between two low cables.","Sweep up and together.","Resist the stretch on the way back."],
   faults:["Cables set too high.","Rushing the eccentric."]},
@@ -415,7 +415,7 @@ deficit_pushup:{n:"Deficit Push-Up",m:"chest",sub:["mid"],sec:["triceps"],bias:"
   cues:["Hands on two low blocks or dumbbells.","Lower the chest below hand level.","Body in one straight line."],
   faults:["Hips sagging.","Cutting depth short."]},
 /* ---- BACK ---- */
-chinup:{n:"Chin-Up",m:"back",sub:["lats"],sec:["biceps"],bias:"stretch",type:"compound",eq:"bw",reps:[5,12],
+chinup:{n:"Chin-Up",m:"back",sub:["lats"],sec:["biceps"],bias:"stretch",type:"compound",eq:"bw",reps:[5,12],needs:["pb"],
   why:"Supinated grip adds heavy biceps involvement while still loading the lats through a full stretch.",
   cues:["Palms facing you, shoulder-width.","Full dead-hang start.","Drive elbows down to the ribs."],
   faults:["Kipping.","Stopping short of the chin over the bar."]},
@@ -423,7 +423,7 @@ tbar_row:{n:"T-Bar Row",m:"back",sub:["lats","traps"],sec:["biceps"],bias:"mid",
   why:"Heavy horizontal pull with the chest supported or braced — big mid-back loading.",
   cues:["Hinge over the bar, flat back.","Pull to the lower chest.","Squeeze blades together 1s."],
   faults:["Jerking with the lower back.","Standing upright as reps get hard."]},
-chest_supported_row:{n:"Chest-Supported DB Row",m:"back",impl:2,sub:["lats","traps"],sec:["biceps"],bias:"mid",type:"compound",eq:"db",reps:[8,12],
+chest_supported_row:{n:"Chest-Supported DB Row",m:"back",impl:2,sub:["lats","traps"],sec:["biceps"],bias:"mid",type:"compound",eq:"db",reps:[8,12],needs:["bn"],
   why:"Pad removes the lower back and momentum entirely — pure back stimulus.",
   cues:["Chest on an incline bench.","Row to the hips, elbows back.","Full stretch at the bottom."],
   faults:["Lifting the chest off the pad.","Shrugging the weight up."]},
@@ -435,7 +435,7 @@ neutral_pulldown:{n:"Neutral-Grip Pulldown",m:"back",sub:["lats"],sec:["biceps"]
   why:"Shoulder-friendly grip that many people feel in the lats better than a wide grip.",
   cues:["Palms facing each other.","Pull to the upper chest.","Full stretch overhead each rep."],
   faults:["Leaning back excessively.","Pulling with the arms only."]},
-inverted_row:{n:"Inverted Row",m:"back",sub:["traps","lats"],sec:["biceps"],bias:"mid",type:"compound",eq:"bw",reps:[8,15],
+inverted_row:{n:"Inverted Row",m:"back",sub:["traps","lats"],sec:["biceps"],bias:"mid",type:"compound",eq:"bw",reps:[8,15],needs:["pb"],
   why:"Bodyweight horizontal pull — scalable by changing body angle.",
   cues:["Bar at hip height, body straight.","Pull the chest to the bar.","Squeeze the blades, lower slowly."],
   faults:["Hips sagging.","Partial reps."]},
@@ -477,7 +477,7 @@ cable_bayesian:{n:"Bayesian Cable Curl",m:"biceps",sub:["long"],sec:[],bias:"str
   why:"Arm behind the body under constant cable tension — the strongest long-head stretch position.",
   cues:["Face away from a low cable, arm back.","Curl without letting the elbow travel forward.","Control back to the deep stretch."],
   faults:["Standing too close to the stack.","Letting the shoulder swing forward."]},
-spider_curl:{n:"Spider Curl",m:"biceps",impl:2,sub:["short"],sec:[],bias:"short",type:"isolation",eq:"db",reps:[10,15],
+spider_curl:{n:"Spider Curl",m:"biceps",impl:2,sub:["short"],sec:[],bias:"short",type:"isolation",eq:"db",reps:[10,15],needs:["bn"],
   why:"Chest-supported with arms hanging vertically — maximal tension at peak contraction.",
   cues:["Chest on an incline bench, arms straight down.","Curl to full contraction.","Squeeze 1s at the top."],
   faults:["Swinging the dumbbells.","Lifting the chest off the pad."]},
@@ -490,11 +490,11 @@ reverse_curl:{n:"Reverse Curl",m:"biceps",impl:2,sub:["brach"],sec:[],bias:"mid"
   cues:["Palms facing down, elbows fixed.","Curl smoothly, no swing.","Control the negative."],
   faults:["Wrists collapsing.","Going too heavy and swinging."]},
 /* ---- TRICEPS ---- */
-ez_skull:{n:"EZ-Bar Skull Crusher",m:"triceps",sub:["long","lateral"],sec:[],bias:"mid",type:"isolation",eq:"bb",reps:[8,12],
+ez_skull:{n:"EZ-Bar Skull Crusher",m:"triceps",sub:["long","lateral"],sec:[],bias:"mid",type:"isolation",eq:"bb",reps:[8,12],needs:["bn"],
   why:"Barbell version allows heavier loading than dumbbells for the same movement.",
   cues:["Lower toward or just behind the forehead.","Upper arms vertical.","Extend to lockout without flaring."],
   faults:["Turning it into a close-grip press.","Elbows drifting apart."]},
-db_cgpress:{n:"Close-Grip DB Press",m:"triceps",impl:2,sub:["lateral","medial"],sec:["chest"],bias:"mid",type:"compound",eq:"db",reps:[8,12],
+db_cgpress:{n:"Close-Grip DB Press",m:"triceps",impl:2,sub:["lateral","medial"],sec:["chest"],bias:"mid",type:"compound",eq:"db",reps:[8,12],needs:["bn"],
   why:"Dumbbell alternative to close-grip bench — easier on the wrists.",
   cues:["Dumbbells touching, neutral grip.","Elbows tucked close to the ribs.","Press straight up and lock out."],
   faults:["Letting the elbows flare.","Short range at the bottom."]},
@@ -523,7 +523,7 @@ smith_squat:{n:"Smith Machine Squat",m:"quads",sub:["vasti"],sec:["glutes"],bias
   why:"Fixed path lets you place the feet forward for a quad-dominant position without balance limits.",
   cues:["Feet slightly forward of the bar.","Sink to at least parallel.","Drive through the whole foot."],
   faults:["Feet so far forward the knees strain.","Half depth."]},
-step_up:{n:"Dumbbell Step-Up",m:"quads",impl:2,sub:["vasti"],sec:["glutes"],bias:"mid",type:"compound",eq:"db",reps:[8,15],
+step_up:{n:"Dumbbell Step-Up",m:"quads",impl:2,sub:["vasti"],sec:["glutes"],bias:"mid",type:"compound",eq:"db",reps:[8,15],needs:["bn"],
   why:"Unilateral quad and glute work with minimal spinal load.",
   cues:["Box at about knee height.","Drive through the top foot, don't push off the floor.","Lower slowly under control."],
   faults:["Bouncing off the trailing leg.","Box so high it becomes a jump."]},
@@ -545,7 +545,7 @@ sl_rdl:{n:"Single-Leg RDL",m:"hamstrings",impl:1,sub:["hinge"],sec:["glutes"],bi
   cues:["Hinge over one leg, back leg extending behind.","Hips square to the floor.","Stand by squeezing the glute."],
   faults:["Hips rotating open.","Rounding the back at the bottom."]},
 /* ---- GLUTES ---- */
-db_hipthrust:{n:"Dumbbell Hip Thrust",m:"glutes",impl:1,sub:["max"],sec:["hamstrings"],bias:"short",type:"compound",eq:"db",reps:[10,15],
+db_hipthrust:{n:"Dumbbell Hip Thrust",m:"glutes",impl:1,sub:["max"],sec:["hamstrings"],bias:"short",type:"compound",eq:"db",reps:[10,15],needs:["bn"],
   why:"Same peak-tension glute pattern as the barbell version, no bar or pad needed.",
   cues:["Upper back on a bench, dumbbell on the hips.","Drive to full hip extension.","Squeeze 1s, ribs down."],
   faults:["Arching the lower back instead of extending the hips.","Partial lockout."]},
@@ -575,7 +575,7 @@ db_calf:{n:"Single-Leg DB Calf Raise",m:"calves",impl:1,sub:["gastroc"],sec:[],b
   cues:["One foot on a step, dumbbell in the same-side hand.","Deep 2s stretch.","Rise as high as possible."],
   faults:["Rushing reps.","Using the support arm to lift."]},
 /* ---- CORE ---- */
-ab_wheel:{n:"Ab Wheel Rollout",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[6,12],
+ab_wheel:{n:"Ab Wheel Rollout",m:"core",sub:["rectus"],sec:[],bias:"stretch",type:"isolation",eq:"bw",reps:[6,12],needs:["aw"],
   why:"Loads the abs in a lengthened position under anti-extension demand — one of the best ab builders.",
   cues:["Start on the knees, ribs down.","Roll out as far as you can hold a neutral spine.","Pull back with the abs, not the hips."],
   faults:["Lower back arching.","Rolling out past your control."]},
@@ -683,16 +683,16 @@ farmer_carry:{n:"Farmer's Carry",m:"forearms",impl:2,sub:["flexors"],sec:["core"
   why:"Heavy loaded carry builds crushing grip plus trunk stability. Reps here = seconds carried.",
   cues:["Heavy dumbbells at your sides, tall posture.","Ribs down, shoulders back.","Walk smoothly — no waddling."],
   faults:["Leaning to one side.","Shrugging the shoulders up."]},
-dead_hang:{n:"Dead Hang",m:"forearms",sub:["flexors"],sec:["back"],bias:"stretch",type:"isolation",eq:"bw",reps:[20,60],track:"hold",
+dead_hang:{n:"Dead Hang",m:"forearms",sub:["flexors"],sec:["back"],bias:"stretch",type:"isolation",eq:"bw",reps:[20,60],needs:["pb"],track:"hold",
   why:"Grip endurance and shoulder decompression with zero equipment. Reps = seconds.",
   cues:["Hang from a bar, arms straight.","Shoulders active, not fully slack.","Breathe and hold."],
   faults:["Death-gripping and swinging.","Fully shrugged passive hanging."]},
 /* ---- CHEST gaps ---- */
-decline_press:{n:"Decline Bench Press",m:"chest",sub:["lower"],sec:["triceps"],bias:"mid",type:"compound",eq:"bb",reps:[6,10],
+decline_press:{n:"Decline Bench Press",m:"chest",sub:["lower"],sec:["triceps"],bias:"mid",type:"compound",eq:"bb",reps:[6,10],needs:["bn"],
   why:"Loads the lower/costal pec fibres more than a flat press.",
   cues:["Slight decline (~15°), feet secured.","Lower to the lower chest.","Press without locking harshly."],
   faults:["Too steep a decline.","Bouncing off the ribs."]},
-db_pullover:{n:"Dumbbell Pullover",m:"chest",impl:1,sub:["mid"],sec:["back"],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],
+db_pullover:{n:"Dumbbell Pullover",m:"chest",impl:1,sub:["mid"],sec:["back"],bias:"stretch",type:"isolation",eq:"db",reps:[10,15],needs:["bn"],
   why:"Loads the pecs (and lats) in a deep overhead stretch — a position nothing else covers.",
   cues:["Lie across or along a bench, one dumbbell overhead.","Lower behind the head to a strong stretch.","Pull back over the chest with slight elbow bend."],
   faults:["Bending the elbows into a press.","Going so deep the shoulders pinch."]},
@@ -1089,7 +1089,7 @@ v_up:{n:"V-Up",m:"core",sub:["rectus"],sec:[],bias:"mid",type:"isolation",eq:"bw
   why:"Trains the upper and lower abs simultaneously — a step up from crunches and leg raises done separately.",
   cues:["Lie flat, arms overhead.","Fold at the hips, reaching hands to feet.","Keep legs as straight as control allows.","Lower under control, don't collapse."],
   faults:["Using a floor bounce to launch.","Bending the knees to cheat the range."]},
-toes_to_bar:{n:"Toes-to-Bar",m:"core",sub:["rectus"],sec:["back","forearms"],bias:"stretch",type:"isolation",eq:"bw",reps:[5,12],
+toes_to_bar:{n:"Toes-to-Bar",m:"core",sub:["rectus"],sec:["back","forearms"],bias:"stretch",type:"isolation",eq:"bw",reps:[5,12],needs:["pb"],
   why:"The hardest bodyweight flexion progression — full range from a dead hang with a strong pelvic curl at the top.",
   cues:["Dead hang, shoulders active.","Curl the pelvis and drive the toes to the bar.","No swinging — control both directions.","Regress to knees-to-chest if needed."],
   faults:["Kipping and swinging.","Only lifting at the hips without curling the pelvis."]},
@@ -1197,8 +1197,33 @@ Object.assign(PATTERNS,{
   "Biceps curl":["curl","bb_curl","cable_curl","machine_curl","cable_bayesian","incline_curl","preacher_curl","spider_curl","concentration_curl"],
   "Chest fly":["cable_fly","db_fly","pec_deck","incline_cable_fly","low_cable_fly","db_pullover"],
   "Back extension":["back_ext","reverse_hyper"],
-  "Glute isolation":["abduction","kickback_glute","machine_kickback"],
+  "Glute isolation":["kickback_glute","machine_kickback"],
   "Anti-rotation":["plank","side_plank","pallof","russian_twist","hollow_hold","dead_bug","bird_dog","bicycle_crunch"],
   "Loaded rotation":["woodchopper","torso_rotation"]
 });
-const DATA_VERSION = 24;
+
+/* ============================================================
+   EXPANSION 6 — the missing half of the abductor/adductor pair
+============================================================ */
+Object.assign(EX,{
+hip_adduction:{n:"Hip Adduction Machine",m:"glutes",sub:["add"],sec:[],bias:"short",type:"isolation",eq:"mc",reps:[12,20],
+  why:"The inner-thigh counterpart to hip abduction — most gyms have both machines side by side. Adductors get little work from squats or hinges, so this is close to the only way to train them directly.",
+  cues:["Sit with pads on the outer knees/thighs (adduction setting, not abduction).","Squeeze the legs together against the resistance.","Pause 1s at full contraction.","Control the return to the stretch."],
+  faults:["Using momentum to bounce the weight closed.","Going so heavy the range shortens to nothing.","Confusing the machine's abduction and adduction settings."]}
+});
+RANK.glutes=["hipthrust","bulgarian","db_hipthrust","machine_hipthrust","pullthrough","kb_swing","kickback_glute","machine_kickback","frog_pump","abduction","hip_adduction"];
+PATTERNS["Hip abduction/adduction"]=["abduction","hip_adduction"];
+
+/* ============================================================
+   EXPANSION 7 — the missing basic bodyweight squat
+============================================================ */
+Object.assign(EX,{
+air_squat:{n:"Bodyweight Squat",m:"quads",sub:["vasti","rf"],sec:["glutes"],bias:"mid",type:"compound",eq:"bw",reps:[15,25],
+  why:"The fundamental squat pattern with zero equipment — the entry point for the whole quad exercise list, and enough of a stimulus on its own at higher reps.",
+  cues:["Feet shoulder-width, toes slightly out.","Sit the hips back and down, chest up.","Go at least to parallel — thighs level with the floor.","Drive up through the whole foot."],
+  faults:["Heels lifting off the floor.","Knees caving inward.","Stopping the descent too high (quarter squats)."]}
+});
+RANK.quads=["squat","hacksquat","legpress","front_squat","pendulum_squat","belt_squat","smith_squat","lunge","step_up","goblet","air_squat","sissy_squat","legext"];
+PATTERNS["Squat"]=["squat","front_squat","smith_squat","goblet","air_squat","hacksquat","legpress","belt_squat","pendulum_squat"];
+
+const DATA_VERSION = 28;
