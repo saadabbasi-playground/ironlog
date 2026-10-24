@@ -1226,4 +1226,19 @@ air_squat:{n:"Bodyweight Squat",m:"quads",sub:["vasti","rf"],sec:["glutes"],bias
 RANK.quads=["squat","hacksquat","legpress","front_squat","pendulum_squat","belt_squat","smith_squat","lunge","step_up","goblet","air_squat","sissy_squat","legext"];
 PATTERNS["Squat"]=["squat","front_squat","smith_squat","goblet","air_squat","hacksquat","legpress","belt_squat","pendulum_squat"];
 
-const DATA_VERSION = 28;
+
+// ---- v29: single-arm rear-delt variations ----
+Object.assign(EX,{
+sa_cable_rear_delt:{n:"Single-Arm Cable Rear Delt Fly",m:"back",sub:["rear"],sec:[],bias:"stretch",type:"isolation",eq:"cb",reps:[12,20],impl:1,
+ why:"One arm at a time lets you set the cable path to your own shoulder and rotate the torso slightly to get a longer stretch. Fixes strong-side/weak-side imbalances too.",
+ cues:["Pulley at about shoulder height, handle in the opposite hand across your body.","Lead with the elbow, sweep the arm out and back in a wide arc, thumb slightly down.","Keep the torso still — no rowing and no shrugging.","Squeeze at the back, then let the cable pull the arm back across slowly."],
+ faults:["Turning it into a one-arm row (elbow behind the body, bent arm).","Shrugging the trap instead of moving the shoulder.","Twisting the whole torso to move the weight."]},
+sa_reverse_pec_deck:{n:"Single-Arm Reverse Pec Deck",m:"back",sub:["rear"],sec:[],bias:"short",type:"isolation",eq:"mc",reps:[12,20],impl:1,
+ why:"Same stable machine path as the two-arm version, but one side at a time so each rear delt gets full attention and the weaker side can't lean on the stronger one.",
+ cues:["Face the pad, chest supported, one handle gripped at shoulder height (set the start position so the arm begins slightly across the body).","Sweep the arm out and back, leading with the elbow.","Pause and squeeze at the end, then return under control.","Keep the other hand resting on the frame — don't let the torso twist."],
+ faults:["Rotating the whole torso to cheat the weight back.","Pressing down instead of sweeping back.","Letting the stack drop on the return."]}
+});
+RANK.back=RANK.back.flatMap(id=>id==="cable_rear_delt"?[id,"sa_cable_rear_delt","sa_reverse_pec_deck"]:[id]);
+PATTERNS["Rear delt"]=PATTERNS["Rear delt"].concat(["sa_cable_rear_delt","sa_reverse_pec_deck"]);
+
+const DATA_VERSION = 29;
