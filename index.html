@@ -343,7 +343,7 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 <div id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="data.js?v=24"></script>
+<script src="data.js?v=29"></script>
 <script>
 /* ============================================================
    STATE + HELPERS
@@ -362,7 +362,7 @@ const unit=()=>me?.details?.unit||"kg";
 const jump=id=>{const big=BIG_LIFTS.has(id);return unit()==="lb"?(big?10:5):(big?RULES.bigJump:RULES.smallJump);};
 const todayKey=()=>new Date().toISOString().slice(0,10);
 const fmt1=n=>(+(+n).toFixed(1)).toString();
-const EQ_LABEL={bb:"Barbell",db:"Dumbbell",cb:"Cable",mc:"Machine",bw:"Bodyweight"};
+const EQ_LABEL={bb:"Barbell",db:"Dumbbell",cb:"Cable",mc:"Machine",bw:"Bodyweight",pb:"Pull-up bar",aw:"Ab wheel",bn:"Bench"};
 const BIAS_LABEL={stretch:"Stretch-loaded",short:"Peak squeeze",mid:"Mid-range"};
 
 function render(id){
@@ -387,7 +387,7 @@ function back(){const p=navStack.pop(); if(p){render(p);go(p,false);} else tab("
    PROGRAM GENERATOR (rules from data.js)
 ============================================================ */
 function eqPool(mus){ return RANK[mus].filter(id=>me?ex_eq_ok(id,me.details.eqs):true); }
-function ex_eq_ok(id,eqs){ return eqs.includes(EX[id].eq); }
+function ex_eq_ok(id,eqs){ return eqs.includes(EX[id].eq) && (EX[id].needs||[]).every(p=>eqs.includes(p)); }
 function weeklyTarget(m,details){
   const L=LANDMARKS[m];
   let s=L.mev+(L.mav-L.mev)*RULES.expFactor[details.exp];
@@ -411,7 +411,7 @@ function generatePlan(details,rotOffset=0,startDate=null){
       let perDay=Math.max(2,Math.min(12,Math.round(total/freq[m])));
       const o=occ[m]=(occ[m]??-1)+1;
       let pool=eqPool(m).filter(id=>!seen.has(id));
-      if(!pool.length) pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!seen.has(id));
+      if(!pool.length) pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!(EX[id].needs&&EX[id].needs.length)&&!seen.has(id));
       if(!pool.length) return;
       // anchor slot: first occurrence keeps the top-ranked lift IF it's an anchor lift; everything else rotates
       let idx;
@@ -606,7 +606,7 @@ function buildCustomDay(key,name){
   const seen=new Set(),exercises=[];
   mus.forEach(m=>{
     let pool=eqPool(m).filter(id=>!seen.has(id));
-    if(!pool.length)pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!seen.has(id));
+    if(!pool.length)pool=RANK[m].filter(id=>EX[id].eq==="bw"&&!(EX[id].needs&&EX[id].needs.length)&&!seen.has(id));
     if(!pool.length)return;
     let want=(t.sets&&t.sets[m])||3;
     if(sized){ const hr=headroom(m); want=Math.max(0,Math.min(6,hr.toMrv||0)); if(!want)return; }
@@ -901,8 +901,9 @@ const OB_STEPS=[
    <label class="f">Training age</label>${chipG("exp",[["beginner","<1 yr"],["intermediate","1–3 yrs"],["advanced","3+ yrs"]],d.exp||"intermediate")}
    <p class="tiny muted" style="margin-top:10px">Sessions are built to fit the window you pick — including rest times, which get long on a Strength focus. An honest 45 minutes beats a 90-minute plan you skip.</p>`,
   read:d=>{d.days=+chipV("days");d.sessionTime=chipV("stime");d.exp=chipV("exp");return true;}},
- {t:"Equipment",s:"Select everything you have access to.",html:d=>
-   chipG("eqs",[["bb","Barbell"],["db","Dumbbells"],["cb","Cables"],["mc","Machines"],["bw","Bodyweight"]],d.eqs||["bb","db","cb","mc","bw"],5),
+ {t:"Equipment",s:"Select everything you have access to.",html:d=>`
+   ${chipG("eqs",[["bb","Barbell"],["db","Dumbbells"],["cb","Cables"],["mc","Machines"],["bw","Bodyweight"],["pb","Pull-up bar"],["aw","Ab wheel"],["bn","Bench"]],d.eqs||["bb","db","cb","mc","bw"],8)}
+   <p class="tiny muted" style="margin-top:8px">Pull-up bar, ab wheel and bench are separate from Bodyweight — some "bodyweight" exercises (pull-ups, ab wheel rollouts) need a specific prop, and many dumbbell exercises (bench press, flys) assume you have a bench. Only pick these if you actually have them.</p>`,
   read:d=>{d.eqs=chipVs("eqs"); if(!d.eqs.includes("bw"))d.eqs.push("bw"); if(!d.eqs.length){toast("Pick at least one");return false;} return true;}},
  {t:"Priorities & split",s:"Priority muscles get pushed toward their max adaptive volume.",html:d=>`
    <label class="f">Priority muscles (up to 2)</label>${chipG("prio",Object.entries(MUSCLES).map(([k,v])=>[k,v.n]),d.priority||[],2)}
@@ -1158,7 +1159,7 @@ function renderExSearch(){
   $("lib-list").innerHTML=!q?"":Object.entries(EX)
     .filter(([id,e])=>e.n.toLowerCase().includes(q))
     .map(([id,e])=>`<div class="lib-item" onclick="showHowTo('${id}')"><b>${esc(e.n)}</b>
-      <div class="tiny muted">${MUSCLES[e.m].n} · ${EQ_LABEL[e.eq]} · ${BIAS_LABEL[e.bias]}</div></div>`).join("");
+      <div class="tiny muted">${MUSCLES[e.m].n} · ${EQ_LABEL[e.eq]}${(e.needs||[]).length?" + "+e.needs.map(p=>EQ_LABEL[p]).join(" + "):""} · ${BIAS_LABEL[e.bias]}</div></div>`).join("");
 }
 function weekSetsFor(m){
   let n=0;
@@ -1366,8 +1367,9 @@ function swapGroups(curId){
 }
 function swapItem(id,handler){
   const x=EX[id];
+  const propTxt=(x.needs||[]).map(p=>EQ_LABEL[p]).join(" + ");
   return `<div class="lib-item" onclick="${handler}"><div class="spread"><b>⇄ ${esc(x.n)}</b>
-    <span class="pill ${ex_eq_ok(id,me.details.eqs)?"dim":"gold"}" style="font-size:10px">${EQ_LABEL[x.eq].toUpperCase()}</span></div>
+    <span class="pill ${ex_eq_ok(id,me.details.eqs)?"dim":"gold"}" style="font-size:10px">${EQ_LABEL[x.eq].toUpperCase()}${propTxt?" + "+propTxt.toUpperCase():""}</span></div>
     <div class="tiny muted">${BIAS_LABEL[x.bias]} · ${x.reps[0]}–${x.reps[1]} reps · ${esc(x.why)}</div></div>`;
 }
 function swapSheet(curId,handlerFor,footer){
@@ -1408,18 +1410,44 @@ function swapEx(ei,id){const e=live.ex[ei],t=isTimed(id);
     sets:e.sets.map(()=>newSet(id))};
   saveDraft();closeModal();renderWorkout();toast("Swapped ✓");}
 function removeEx(ei){live.ex.splice(ei,1);saveDraft();closeModal();renderWorkout();}
+// Add-exercise categories. Rear delts live under "back" in the data model but
+// people look for them under Shoulders, so they are grouped there in the picker.
+const ADD_CATS=[["chest","Chest"],["back","Back"],["shoulders","Shoulders"],["biceps","Biceps"],["triceps","Triceps"],
+  ["quads","Quads"],["hamstrings","Hamstrings"],["glutes","Glutes"],["calves","Calves"],["core","Core"],["forearms","Forearms"],["cardio","Cardio"]];
+function addCat(x){ return (x.m==="back"&&(x.sub||[]).includes("rear"))?"shoulders":x.m; }
+let addCatSel="all";
 function openAddExercise(){
+  addCatSel="all";
   const ok=Object.entries(EX).filter(([id,x])=>ex_eq_ok(id,me.details.eqs));
+  const order=Object.fromEntries(ADD_CATS.map(([k],i)=>[k,i]));
+  ok.sort((a,b)=>(order[addCat(a[1])]??99)-(order[addCat(b[1])]??99)||a[1].n.localeCompare(b[1].n));
+  const have=new Set(ok.map(([,x])=>addCat(x)));
+  const inWorkout=new Set((live&&live.ex||[]).map(e=>EX[e.id]&&addCat(EX[e.id])).filter(Boolean));
+  const cats=ADD_CATS.filter(([k])=>have.has(k));
   $("modal-body").innerHTML=`<h2 class="display" style="font-size:19px;margin-bottom:10px">Add exercise</h2>
-    <input class="f" id="add-search" placeholder="Search…" oninput="filterAddList(this.value)" style="margin-bottom:10px">
-    <div id="add-list">${ok.map(([id,x])=>`<div class="lib-item" data-n="${esc(x.n.toLowerCase())} ${MUSCLES[x.m].n.toLowerCase()}" onclick="addExToLive('${id}')"><b>${esc(x.n)}</b><div class="tiny muted">${MUSCLES[x.m].n} · ${BIAS_LABEL[x.bias]}</div></div>`).join("")}</div>
+    <input class="f" id="add-search" placeholder="Search…" oninput="filterAddList()" style="margin-bottom:10px">
+    <div class="chips" id="add-cats" style="flex-wrap:nowrap;overflow-x:auto;margin-bottom:10px;padding-bottom:4px">
+      <div class="chip sel" data-c="all" style="white-space:nowrap" onclick="setAddCat('all')">All</div>
+      ${cats.map(([k,l])=>`<div class="chip" data-c="${k}" style="white-space:nowrap" onclick="setAddCat('${k}')">${l}${inWorkout.has(k)?" •":""}</div>`).join("")}
+    </div>
+    <div id="add-list">${ok.map(([id,x])=>`<div class="lib-item" data-c="${addCat(x)}" data-n="${esc(x.n.toLowerCase())} ${MUSCLES[x.m].n.toLowerCase()} ${esc((x.sub||[]).join(" "))}" onclick="addExToLive('${id}')"><b>${esc(x.n)}</b><div class="tiny muted">${MUSCLES[x.m].n} · ${BIAS_LABEL[x.bias]}</div></div>`).join("")}</div>
+    <div id="add-empty" class="muted tiny" style="display:none;padding:14px 0">No exercises match. Try another category or clear the search.</div>
+    <div class="tiny muted" style="margin:8px 0">• = muscle already in this workout</div>
     <button class="btn ghost" onclick="closeModal()">Cancel</button>`;
   $("modal").classList.add("show");
 }
-function filterAddList(q){
-  q=q.toLowerCase();
+function setAddCat(c){
+  addCatSel=c;
+  document.querySelectorAll("#add-cats .chip").forEach(el=>el.classList.toggle("sel",el.dataset.c===c));
+  filterAddList();
+}
+function filterAddList(){
+  const q=($("add-search")?.value||"").toLowerCase().trim();
+  let shown=0;
   document.querySelectorAll("#add-list .lib-item").forEach(el=>{
-    el.style.display=el.dataset.n.includes(q)?"":"none";});
+    const ok=(addCatSel==="all"||el.dataset.c===addCatSel)&&el.dataset.n.includes(q);
+    el.style.display=ok?"":"none"; if(ok)shown++;});
+  const e=$("add-empty"); if(e)e.style.display=shown?"none":"";
 }
 function rirHelp(){
   $("modal-body").innerHTML=`<h2 class="display" style="font-size:20px;margin-bottom:10px">What is RIR?</h2>
@@ -1769,7 +1797,8 @@ function showHowTo(id){
       :isHold(id)?x.sets.map(s=>`${+s.w?s.w+"×":""}${s.sec}s`).join(", ")
       :x.sets.map(s=>s.w+"×"+s.r).join(", ")}</span></div>`).join("")}`:"";
   $("modal-body").innerHTML=`<div class="row"><span class="pill">${MUSCLES[e.m].n}</span>
-    <span class="pill ${e.bias==="stretch"?"green":"dim"}">${BIAS_LABEL[e.bias]}</span><span class="pill dim">${EQ_LABEL[e.eq]}</span></div>
+    <span class="pill ${e.bias==="stretch"?"green":"dim"}">${BIAS_LABEL[e.bias]}</span><span class="pill dim">${EQ_LABEL[e.eq]}</span>
+    ${(e.needs||[]).map(p=>`<span class="pill gold">+ ${EQ_LABEL[p]}</span>`).join("")}</div>
     <h2 class="display" style="font-size:22px;margin:10px 0 6px">${esc(e.n)}</h2>
     ${L?`<div class="rec hold" style="margin:0 0 10px">🏅 Your level here: <b>${L.name}</b> (e1RM ${L.e1} ${unit()} = ${L.ratio}×BW)${L.next?` — ${L.next} at ~${L.nextAt} ${unit()}`:""}</div>`:""}
     <p class="tiny muted" style="margin-bottom:12px">${esc(e.why)} Targets: ${e.sub.map(s=>MUSCLES[e.m].subs[s]).join(", ")}.</p>
@@ -1818,7 +1847,7 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 24 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 29 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
@@ -1826,7 +1855,7 @@ function renderProfile(){
 ============================================================ */
 const NEEDS=["MUSCLES","EX","RULES","RANK","PATTERNS","FOCUS","GOAL_TRAINING","EVIDENCE",
   "DAY_TEMPLATES","CARDIO_GUIDE","INTENSITIES","isHold","isTimeBased","implCount","isPerHand","WARMUP","SESSION_TIME","TIME_MODEL","PREP","PREP_NOTE","METRICS","metricsFor","MEASURES","STRENGTH_STANDARDS","LEVELS","VIDS"];
-const REQUIRED_DATA_VERSION=24;
+const REQUIRED_DATA_VERSION=29;
 function bootFail(title,detail){
   document.getElementById("app").innerHTML=
     `<div style="padding:40px 22px 60px;text-align:center;overflow-y:auto">
