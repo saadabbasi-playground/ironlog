@@ -174,6 +174,15 @@ body.resting #s-workout{padding-bottom:calc(var(--safe-b) + 140px)}
 .barline{height:12px;background:var(--raised);border-radius:6px;overflow:hidden;margin:6px 0 2px}
 .barline .in{height:100%;background:var(--blue);border-radius:6px;transition:width .3s}
 .barline .in.over{background:var(--gold)}
+.gbar{position:relative;height:16px;background:var(--raised);border-radius:8px;overflow:hidden;margin:12px 0 6px}
+.gbar .in{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:8px;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.gbar .in.done{background:var(--green)}
+.gbar i{position:absolute;top:0;bottom:0;width:2px;background:var(--bg);opacity:.55}
+.gtrio{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.gtrio b{color:var(--text);font-size:14px}
+.wkdots{display:flex;gap:6px;margin-top:6px}
+.wkdots span{width:14px;height:14px;border-radius:50%;background:var(--raised);border:1px solid var(--line)}
+.wkdots span.on{background:var(--green);border-color:var(--green)}
 /* body map */
 .bodymap{display:flex;justify-content:space-around;gap:6px;margin:4px 0 8px}
 .bodymap svg{width:46%;max-width:180px}
@@ -824,6 +833,7 @@ const COLORS=["#3D6BFF","#3ECF8E","#FFC53D","#FF5D5D","#B07CFF","#FF8A3D"];
 const GOALS={bulk:"Build muscle (surplus)",cut:"Lose fat (deficit)",recomp:"Recomp / maintain"};
 function migrate(u){
   const d=u.details||{};
+  if(!u.goals) u.goals=[];
   if(!d.eqs) d.eqs = d.equipment==="g"?["bb","db","cb","mc","bw"]:d.equipment==="d"?["db","bw"]:["bw"];
   if(!d.goal||!(d.goal in GOALS)) d.goal = d.goal==="fatloss"?"cut":"bulk";
   d.exp=d.exp||"intermediate"; d.days=d.days||3; d.splitPref=d.splitPref||"auto"; d.focus=d.focus&&FOCUS[d.focus]?d.focus:"hypertrophy"; d.sessionTime=d.sessionTime&&SESSION_TIME[d.sessionTime]?d.sessionTime:"s75";
@@ -1057,6 +1067,7 @@ function renderToday(){
     <div style="height:14px"></div><button class="btn" onclick="startWorkout(${idx})">Start workout</button></div>
   <div class="chips" style="margin-bottom:14px">${me.plan.days.map((d,i)=>
     `<div class="chip ${i===idx?"sel":""}" onclick="pickDay(${i})">${esc(d.name)}${i===sug?" ↻":""}</div>`).join("")}</div>`;
+  html+=goalsSection(false);
   // nutrition snapshot
   const t=nutritionTargets(me.details);
   if(t){
@@ -1494,6 +1505,7 @@ function finishWorkout(){
   const dur=Math.round((Date.now()-live.start)/60000);
   const entry={date:new Date().toISOString(),dayIdx:live.dayIdx,name:live.name,exercises,volume,dur,deload:live.deload};
   me.history.push(entry);save();
+  goalHits=checkGoals();
   todayPick=null;
   live=null;saveDraft();stopRest();clearInterval(clockIv);
   renderSummary(entry,prevMax,prevBest,sameDayPrev);
@@ -1527,6 +1539,8 @@ function renderSummary(entry,prevMax,prevBest,sameDayPrev){
       <div style="margin-top:6px">${delta}</div></div>
     ${prs.length?`<div class="card" style="border-color:var(--gold)"><b class="gold">🏆 New personal record${prs.length>1?"s":""}!</b>
       ${prs.map(p=>`<div class="pr-row"><span>${esc(p.name)}</span><b class="gold num">${p.w} ${unit()}</b></div>`).join("")}</div>`:""}
+    ${goalHits.length?goalHits.map(m=>`<div class="card" style="border-color:var(--green)"><b class="green">${esc(m)}</b></div>`).join(""):""}
+    ${(me.goals||[]).length?`<div class="tiny muted" style="font-weight:700;margin:4px 0 8px">GOAL PROGRESS</div>`+goalsSection(true):""}
     <div class="card"><div class="tiny muted" style="font-weight:700;margin-bottom:6px">EXERCISE BREAKDOWN</div>${rows}</div>
     <div class="coach"><b>Next session:</b> load prescriptions update automatically from what you just logged.</div>`;
 }
@@ -1701,6 +1715,207 @@ function renderScience(){
     <p class="tiny muted">Not medical advice. If you have a medical condition, an injury, or a history of disordered eating, consult a qualified professional before following any programme.</p>`;
 }
 
+
+/* ============================================================
+   GOALS — how far am I from the target? (bar, milestones, pace)
+   me.goals = [{id, kind:"m"|"l", k, start, target, t0, by, hit[]}]
+   kind "m" = a body measurement (weight, waist, arm…), "l" = estimated 1RM of a big lift.
+============================================================ */
+const GOAL_MAX=3, GOAL_MILESTONES=[25,50,75,100];
+const goalLabel=g=>g.kind==="m"?MEASURES.find(m=>m.k===g.k).n:EX[g.k].n;
+const goalUnit=g=>g.kind==="m"?MEASURES.find(m=>m.k===g.k).u:unit();
+function goalPoints(g){
+  if(g.kind==="m"){
+    const s=measureSeries(g.k).map(x=>({t:+new Date(x.d),v:x.v}));
+    if(g.k==="weightKg"&&!s.length&&me.details.weightKg)s.push({t:Date.now(),v:me.details.weightKg});
+    return s;
+  }
+  return exHistory(g.k).map(x=>({t:+new Date(x.date),v:x.best}));
+}
+function goalState(g){
+  const pts=goalPoints(g), dir=Math.sign(g.target-g.start)||1;
+  let cur=g.start;
+  if(g.kind==="l"){ // best since goal began — one bad day shouldn't move the bar backwards
+    const since=pts.filter(p=>p.t>=g.t0-864e5).map(p=>p.v);
+    cur=since.length?Math.max(g.start,Math.round(Math.max(...since))):g.start;
+  } else if(pts.length){ cur=pts[pts.length-1].v; }
+  const raw=(cur-g.start)/(g.target-g.start);
+  const pct=Math.max(0,Math.min(1,raw)), done=raw>=1;
+  // pace: least-squares slope over the last 8 weeks (units / week)
+  let slope=null;
+  const rec=pts.filter(p=>p.t>=Date.now()-56*864e5);
+  const minPts=g.kind==='l'?3:2;   // 1RM swings session to session — need more than two points
+  if(rec.length>=minPts&&(rec[rec.length-1].t-rec[0].t)>=6*864e5){
+    const x=rec.map(p=>(p.t-rec[0].t)/(7*864e5)), y=rec.map(p=>p.v), n=x.length;
+    const mx=x.reduce((a,b)=>a+b,0)/n, my=y.reduce((a,b)=>a+b,0)/n;
+    const den=x.reduce((a,b,i)=>a+(b-mx)**2,0);
+    if(den>0)slope=x.reduce((a,b,i)=>a+(b-mx)*(y[i]-my),0)/den;
+  }
+  const left=g.target-cur;
+  const weeksLeft=(slope&&slope*dir>0&&!done)?left/slope:null;
+  let need=null;
+  if(g.by&&!done){const wk=(new Date(g.by+"T23:59:59")-Date.now())/(7*864e5); if(wk>0)need=left/wk; else need=Infinity;}
+  return {cur,pct,done,raw,slope,weeksLeft,need,dir,left,pts:pts.length,early:rec.length<3};
+}
+function goalMsg(s){
+  const p=s.pct*100;
+  if(s.done)return "Goal reached. You earned this — set the next one.";
+  if(s.raw<0)return "Moving the wrong way for now. That's normal on a short window — look at the 4-week trend, not one reading.";
+  if(p<1)return "Day one. Keep showing up — the first changes are mostly your body adapting.";
+  if(p<25)return "You've started moving. Consistency now is what makes the rest easy.";
+  if(p<50)return "A quarter of the way in. This is where most people quit — you didn't.";
+  if(p<75)return "Past halfway. The hard part is behind you.";
+  return "Final stretch. Don't change what's working.";
+}
+function weeksText(w){
+  if(w<1.5)return "about a week";
+  if(w<9)return "about "+Math.round(w)+" weeks";
+  return "about "+Math.round(w/4.345)+" months";
+}
+function goalPace(g,s){
+  const u=goalUnit(g), lines=[];
+  if(s.done)return "";
+  if(s.slope!=null&&s.slope*s.dir>0){
+    lines.push(`Trend: ${s.slope>0?"+":""}${fmt1(s.slope)} ${u}/week → on track in ${weeksText(s.weeksLeft)}${s.early?" (early estimate)":""}.`);
+  } else if(s.slope!=null){
+    lines.push("Your recent trend isn't heading toward this target yet.");
+  } else {
+    lines.push(g.kind==="l"?"Log this lift in a few more sessions and I'll show your pace.":s.pts<2?"Log another reading in 2–4 weeks and I'll show your pace.":"Need two readings a week or more apart to work out your pace.");
+  }
+  if(s.need!=null){
+    if(s.need===Infinity)lines.push("The target date has passed — edit the goal to set a new one.");
+    else{
+      let txt=`To hit ${new Date(g.by).toLocaleDateString(undefined,{day:"numeric",month:"short"})} you need ${s.need>0?"+":""}${fmt1(s.need)} ${u}/week.`;
+      if(g.kind==="m"&&g.k==="weightKg"&&me.details.weightKg){
+        const r=Math.abs(s.need)/me.details.weightKg*100;
+        if(s.dir<0&&r>1)txt+=" That's faster than the ~0.5–1% bodyweight/week most evidence supports for keeping muscle — consider a later date.";
+        if(s.dir>0&&r>0.5)txt+=" That's faster than a lean gain usually allows (~0.25–0.5% bodyweight/week) — expect some of it to be fat.";
+      }
+      lines.push(txt);
+    }
+  } else if(g.kind==="m"&&g.k==="weightKg"&&me.details.weightKg&&s.slope==null){
+    const rate=me.details.weightKg*(s.dir<0?0.0075:0.0035);
+    lines.push(`At a sustainable pace (~${fmt1(rate)} kg/week) this takes ${weeksText(Math.abs(s.left)/rate)}.`);
+  }
+  return lines.join(" ");
+}
+function weekSessions(){
+  const wk=isoWeek(new Date());
+  return me.history.filter(h=>isoWeek(h.date)===wk).length;
+}
+function weekDots(){
+  const want=Math.max(1,me.details.days||3), did=weekSessions();
+  const dots=Array.from({length:Math.max(want,did)},(_,i)=>`<span class="${i<did?"on":""}"></span>`).join("");
+  const note=did>=want?"Week complete — that's the habit that builds results.":did===0?"No sessions yet this week.":`${want-did} to go this week.`;
+  return `<div class="spread"><b style="font-size:14px">This week</b><span class="tiny muted num">${did} / ${want} sessions</span></div>
+    <div class="wkdots">${dots}</div><div class="tiny muted" style="margin-top:6px">${note}</div>`;
+}
+function goalCard(g,i,compact){
+  const s=goalState(g), u=goalUnit(g), pc=Math.round(s.pct*100);
+  const f=v=>g.kind==="l"||g.k==="weightKg"?fmt1(v):fmt1(v);
+  return `<div class="card" ${compact?"":`onclick="openGoalEditor(${i})" style="cursor:pointer"`}>
+    <div class="spread"><b>${esc(goalLabel(g))}</b><span class="display num ${s.done?"green":"blue"}" style="font-size:24px">${pc}%</span></div>
+    <div class="gbar"><div class="in ${s.done?"done":""}" style="width:${pc}%"></div>${[25,50,75].map(m=>`<i style="left:${m}%"></i>`).join("")}</div>
+    <div class="gtrio"><span>Start<br><b class="num">${f(g.start)}</b></span>
+      <span style="text-align:center">Now<br><b class="num">${f(s.cur)} ${u}</b></span>
+      <span style="text-align:right">Goal<br><b class="num">${f(g.target)}</b></span></div>
+    ${compact?"":`<p class="tiny muted" style="margin-top:10px">${esc(goalMsg(s))}</p>
+      ${goalPace(g,s)?`<p class="tiny muted" style="margin-top:4px">${esc(goalPace(g,s))}</p>`:""}`}
+  </div>`;
+}
+function goalsSection(compact){
+  const gs=me.goals||[];
+  let html="";
+  if(!gs.length){
+    return `<div class="card" ${compact?"":`onclick="openGoalEditor(-1)" style="cursor:pointer"`}><div class="spread"><b>🎯 Your goal</b><span class="tiny blue">Set a goal ›</span></div>
+      <p class="tiny muted" style="margin-top:6px">Pick a target — bodyweight, waist, arm size or a big lift — and this card shows how far you are, how fast you're moving and when you'll get there.</p></div>`;
+  }
+  html+=gs.map((g,i)=>goalCard(g,i,compact)).join("");
+  if(!compact){
+    html+=`<div class="card">${weekDots()}</div>`;
+    if(gs.length<GOAL_MAX)html+=`<button class="btn ghost small" style="margin-bottom:12px" onclick="openGoalEditor(-1)">＋ Add another goal</button>`;
+  }
+  return html;
+}
+function currentFor(kind,k){
+  if(kind==="m"){const s=measureSeries(k);return s.length?s[s.length-1].v:(k==="weightKg"?me.details.weightKg:null);}
+  const h=exHistory(k);return h.length?Math.round(Math.max(...h.map(x=>x.best))):null;
+}
+function goalKindOptions(sel){
+  return MEASURES.map(m=>`<option value="m:${m.k}" ${sel==="m:"+m.k?"selected":""}>${m.n} (${m.u})</option>`).join("")
+    +Object.keys(STRENGTH_STANDARDS).filter(id=>EX[id]).map(id=>`<option value="l:${id}" ${sel==="l:"+id?"selected":""}>${esc(EX[id].n)} — est. 1RM (${unit()})</option>`).join("");
+}
+function goalHint(kind,k,start){
+  const dir=me.details.goal==="cut"?-1:1;
+  if(kind==="m"&&k==="weightKg")return start?`Sustainable pace is roughly ${fmt1(start*0.005)}–${fmt1(start*0.01)} kg/week to lose, or ${fmt1(start*0.0025)}–${fmt1(start*0.005)} kg/week to gain lean mass. e.g. ${fmt1(start*(dir<0?0.95:1.03))} kg.`:"Enter your current weight first.";
+  if(kind==="m"&&k==="waist")return "Waist is the best single fat-loss marker. Roughly 0.5 cm a week is a realistic pace.";
+  if(kind==="m")return "Muscle grows slowly — roughly 1–2 cm over 3 months on a trained measurement is a realistic target. A smaller win you hit beats a big one you don't.";
+  return "Early on, strength can rise 2–5% a month; it slows as you progress. Pick a number about 10% above your current estimate for a 3-month goal.";
+}
+function openGoalEditor(i){
+  const g=i>=0?me.goals[i]:null;
+  if(!g&&(me.goals||[]).length>=GOAL_MAX){toast(`Up to ${GOAL_MAX} goals — finish or delete one first`);return;}
+  const sel=g?(g.kind+":"+g.k):"m:weightKg";
+  $("modal-body").innerHTML=`<h2 class="display" style="font-size:20px;margin-bottom:4px">${g?"Edit goal":"Set a goal"}</h2>
+    <p class="tiny muted" style="margin-bottom:6px">One clear number you can measure. You'll see progress here and on Today.</p>
+    <label class="f">What do you want to change?</label>
+    <select class="f" id="g-kind" ${g?"disabled":""} onchange="goalKindChanged()">${goalKindOptions(sel)}</select>
+    <label class="f">Starting point</label><input class="f num" id="g-start" inputmode="decimal" value="${g?g.start:""}" oninput="goalHintRefresh()">
+    <label class="f">Target</label><input class="f num" id="g-target" inputmode="decimal" value="${g?g.target:""}">
+    <label class="f">Target date (optional)</label><input class="f" id="g-by" type="date" value="${g&&g.by?g.by:""}">
+    <p class="tiny muted" id="g-hint" style="margin-top:10px"></p>
+    <div style="height:14px"></div><button class="btn" onclick="saveGoal(${i})">Save goal</button>
+    ${g?`<div style="height:8px"></div><button class="btn ghost" style="color:var(--red)" onclick="deleteGoal(${i})">Delete goal</button>`:""}
+    <div style="height:8px"></div><button class="btn ghost" onclick="closeModal()">Cancel</button>`;
+  if(!g)goalKindChanged(); else goalHintRefresh();
+  $("modal").classList.add("show");
+}
+function goalKindSel(){const [kind,k]=$("g-kind").value.split(":");return {kind,k};}
+function goalKindChanged(){
+  const {kind,k}=goalKindSel(), c=currentFor(kind,k);
+  $("g-start").value=c!=null?c:"";
+  goalHintRefresh();
+}
+function goalHintRefresh(){
+  const {kind,k}=goalKindSel();
+  $("g-hint").textContent=goalHint(kind,k,parseFloat($("g-start").value)||0)
+    +(kind==="l"&&currentFor(kind,k)==null?" You haven't logged this lift yet — enter your best estimated max as the starting point.":"");
+}
+function saveGoal(i){
+  const {kind,k}=goalKindSel(), start=parseFloat($("g-start").value), target=parseFloat($("g-target").value);
+  const by=$("g-by").value||null;
+  if(!(start>0)||!(target>0)){toast("Enter a starting point and a target");return;}
+  if(start===target){toast("Target must differ from the starting point");return;}
+  if(by&&new Date(by+"T23:59:59")<Date.now()){toast("Pick a date in the future");return;}
+  me.goals=me.goals||[];
+  const base=i>=0?me.goals[i]:{id:Date.now().toString(36),kind,k,t0:Date.now(),hit:[]};
+  Object.assign(base,{start,target,by});
+  if(i<0)me.goals.push(base);
+  const s=goalState(base); base.hit=GOAL_MILESTONES.filter(m=>s.pct*100>=m);  // don't fire old milestones
+  save();closeModal();refreshActive();toast(i>=0?"Goal updated ✓":"Goal set 🎯");
+}
+function deleteGoal(i){
+  if(!confirm("Delete this goal?"))return;
+  me.goals.splice(i,1);save();closeModal();refreshActive();
+}
+function refreshActive(){const a=document.querySelector(".screen.active");if(a)render(a.id);}
+let goalHits=[];
+// Compare progress with the milestones already celebrated; returns messages for new ones.
+function checkGoals(){
+  const out=[];
+  (me.goals||[]).forEach(g=>{
+    const s=goalState(g), p=s.pct*100;
+    g.hit=g.hit||[];
+    const fresh=GOAL_MILESTONES.filter(m=>p>=m&&!g.hit.includes(m));
+    if(!fresh.length)return;
+    g.hit.push(...fresh);
+    const top=Math.max(...fresh);
+    out.push(top===100?`🏆 Goal reached: ${goalLabel(g)}!`:top===50?`🎯 Halfway to your ${goalLabel(g)} goal!`:`🎯 ${top}% of the way to your ${goalLabel(g)} goal`);
+  });
+  if(out.length)save();
+  return out;
+}
+
 /* ============================================================
    GROWTH — body measurements + training-stimulus proxies
 ============================================================ */
@@ -1713,7 +1928,7 @@ function saveMeasure(){
   me.measures=me.measures||[];me.measures.push(e);
   me.measures.sort((a,b)=>new Date(a.date)-new Date(b.date));
   if(e.weightKg)me.details.weightKg=e.weightKg;   // keeps BMI + calories in sync
-  save();renderGrowth();toast("Saved ✓");
+  save();const gh=checkGoals();renderGrowth();toast(gh[0]||"Saved ✓");
 }
 function delMeasure(i){
   if(!confirm("Delete this measurement entry?"))return;
@@ -1734,7 +1949,7 @@ function muscleStimulus(m){
 }
 function renderGrowth(){
   const M=me.measures||[],last=M[M.length-1];
-  let html=`<p class="sub">Tape measurements are the only real way to see muscle growth. The training data below shows whether you're creating the stimulus for it.</p>`;
+  let html=goalsSection(false)+`<p class="sub">Tape measurements are the only real way to see muscle growth. The training data below shows whether you're creating the stimulus for it.</p>`;
   // ---- log form ----
   html+=`<div class="card"><b>Log measurements</b>
     <p class="tiny muted" style="margin:4px 0 6px">Same time of day, same tape tension, arm flexed. Every 2–4 weeks is plenty — muscle moves slower than daily noise.</p>
@@ -1847,7 +2062,7 @@ function renderProfile(){
     <div class="pr-row"><span class="muted">Priority</span><b>${(d.priority||[]).map(m=>MUSCLES[m].n).join(", ")||"—"}</b></div>
     ${t?`<div class="pr-row"><span class="muted">Daily target</span><b class="num">${t.kcal} kcal · ${t.pMid}g protein</b></div>`:""}
     <div class="pr-row"><span class="muted">Workouts logged</span><b class="num">${me.history.length}</b></div>
-    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 29 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
+    <div class="pr-row"><span class="muted">App version</span><b class="num tiny">app 30 · data ${typeof DATA_VERSION!=="undefined"?DATA_VERSION:"?"}</b></div>`;
 }
 
 /* ============================================================
