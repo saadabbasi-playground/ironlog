@@ -1799,12 +1799,12 @@ function goalPace(g,s){
   }
   return lines.join(" ");
 }
-function weekSessions(){
+function goalWeekCount(){
   const wk=isoWeek(new Date());
   return me.history.filter(h=>isoWeek(h.date)===wk).length;
 }
 function weekDots(){
-  const want=Math.max(1,me.details.days||3), did=weekSessions();
+  const want=Math.max(1,me.details.days||3), did=goalWeekCount();
   const dots=Array.from({length:Math.max(want,did)},(_,i)=>`<span class="${i<did?"on":""}"></span>`).join("");
   const note=did>=want?"Week complete — that's the habit that builds results.":did===0?"No sessions yet this week.":`${want-did} to go this week.`;
   return `<div class="spread"><b style="font-size:14px">This week</b><span class="tiny muted num">${did} / ${want} sessions</span></div>
